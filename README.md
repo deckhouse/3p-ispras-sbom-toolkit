@@ -1,4 +1,4 @@
-# SBOM Сhecker
+# sbom-checker
 
 ## Требования
 * Python3.8 или выше
@@ -16,6 +16,6 @@ pip install -r requirements.txt
 
 ## Использование
 ```
-python checker.py ./schema.json <filename>
+python sbom-checker.py ./schema.json <filename>
 ```
 filename - имя файла для проверки.
