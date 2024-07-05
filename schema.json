@@ -27,7 +27,7 @@
       "type": "string",
       "title": "CycloneDX Specification Version",
       "description": "The version of the CycloneDX specification the BOM conforms to.",
-      "examples": ["1.6"]
+      "enum": ["1.6"]
     },
     "serialNumber": {
       "type": "string",
@@ -929,7 +929,8 @@
                     "description": "External references provide a way to document systems, sites, and information that may be relevant but are not included with the BOM. They may also establish specific relationships within or external to the BOM.",
                     "required": [
                       "url",
-                      "type"
+                      "type",
+                      "hashes"
                     ],
                     "additionalProperties": false,
                     "properties": {
@@ -963,7 +964,45 @@
                         "type": "array",
                         "items": {"$ref": "#/definitions/hash"},
                         "title": "Hashes",
-                        "description": "The hashes of the external reference (if applicable)."
+                        "description": "The hashes of the external reference (if applicable).",
+                        "anyOf": [
+                          {
+                            "contains": {
+                              "type": "object",
+                              "required": [
+                                "alg",
+                                "content"
+                              ],
+                              "additionalProperties": false,
+                              "properties": {
+                                "alg": {
+                                  "const": "STREEBOG-256"
+                                },
+                                "content": {
+                                  "pattern": "^([a-fA-F0-9]{64})$"
+                                }
+                              }
+                            }
+                          },
+                          {
+                            "contains": {
+                              "type": "object",
+                              "required": [
+                                "alg",
+                                "content"
+                              ],
+                              "additionalProperties": false,
+                              "properties": {
+                                "alg": {
+                                  "const": "STREEBOG-512"
+                                },
+                                "content": {
+                                  "pattern": "^([a-fA-F0-9]{128})$"
+                                }
+                              }
+                            }
+                          }
+                        ]
                       }
                     }
                   }
@@ -1414,8 +1453,8 @@
         "BLAKE2b-384",
         "BLAKE2b-512",
         "BLAKE3",
-        "STRIBOG-256",
-        "STRIBOG-512"
+        "STREEBOG-256",
+        "STREEBOG-512"
       ]
     },
     "hash-content": {
