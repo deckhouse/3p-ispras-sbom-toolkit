@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024 Ekaterina Shastun, ISPRAS
+# SPDX-License-Identifier: Apache-2.0
+
 import argparse
 import json
 import jsonschema
