@@ -6,7 +6,7 @@ import json
 import jsonschema
 
 parser = argparse.ArgumentParser(description='json schema checker')
-parser.add_argument('json', help='schema file')
+parser.add_argument('json', help='schema file', nargs='?', default='./schema.json')
 parser.add_argument('filename', help='file to check')
 
 args = parser.parse_args()
