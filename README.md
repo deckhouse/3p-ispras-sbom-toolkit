@@ -16,6 +16,19 @@ pip install -r requirements.txt
 
 ## Использование
 ```
-python sbom-checker.py ./schema.json <filename>
+prompt> python sbom-checker.py --help
+
+usage: sbom-checker.py [-h] [-e ERRORS] [json] filename
+
+json schema checker
+
+positional arguments:
+  json                  schema file
+  filename              file to check
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e ERRORS, --errors ERRORS
+                        set maximum amount of validator errors shown; default
+                        is 10; set to 0 to show all errors
 ```
-filename - имя файла для проверки.
