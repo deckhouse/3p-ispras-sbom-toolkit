@@ -4,6 +4,7 @@
 import argparse
 import json
 import jsonschema
+from pathlib import Path
 
 parser = argparse.ArgumentParser(description='json schema checker')
 parser.add_argument('json', help='schema file', nargs='?', default='./schema.json')
@@ -14,6 +15,15 @@ parser.add_argument('-e', '--errors', type=int, default=10,
 args = parser.parse_args()
 with open(args.json) as f:
     schema = json.load(f)
+
+if Path(args.json).samefile(Path('./schema.json')): # to resolve references to schemas on local filesystem
+    schema["$defs"]["license"]["properties"]["id"]["$ref"] = \
+        "file://" + str(Path(__file__).parent.resolve() / 'additional_schemas' / \
+        schema["$defs"]["license"]["properties"]["id"]["$ref"])
+    schema["$defs"]["signature"]["$ref"] = \
+        "file://" + str(Path(__file__).parent.resolve() / 'additional_schemas' / \
+        schema["$defs"]["signature"]["$ref"])
+
 with open(args.filename) as f:
     try:
         parsed_file = json.load(f)

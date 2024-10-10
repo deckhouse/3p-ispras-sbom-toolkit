@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2019-09/schema#",
-  "$id": "http://cyclonedx.org/schema/bom-1.6.schema.json",
   "type": "object",
   "title": "CycloneDX Bill of Materials Standard",
   "$comment" : "CycloneDX JSON schema is published under the terms of the Apache License 2.0.",
@@ -5180,7 +5179,7 @@
       }
     },
     "signature": {
-      "$ref": "jsf-0.82.schema.json#/$defs/signature",
+      "$ref": "jsf-0.82.schema.json#/definitions/signature",
       "title": "Signature",
       "description": "Enveloped signature in [JSON Signature Format (JSF)](https://cyberphone.github.io/doc/security/jsf.html)."
     },
