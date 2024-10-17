@@ -41,17 +41,22 @@ optional arguments:
 ```
 prompt> python sbom-updater.py --help
 
-usage: sbom-updater.py [-h] [--props] input output
+usage: sbom-updater.py [-h] [--props] [--app-name APP_NAME] [--app-version APP_VERSION] [--manufacturer MANUFACTURER]
+                       input output
 
 sbom file updater
 
 positional arguments:
-  input       sbom file
-  output      updated file
+  input                 sbom file
+  output                updated file
 
 options:
-  -h, --help  show this help message and exit
-  --props     add {"name": "GOST:attack_surface", "value": "yes"} and 
-              {"name": "GOST:security_function", "value": "yes"} to "properties" 
-              property of every component in the input file
+  -h, --help            show this help message and exit
+  --props               add {"name": "GOST:attack_surface", "value": "yes"} and {"name": "GOST:security_function", "value":
+                        "yes"} to "properties" property of every component in the input file
+  --app-name APP_NAME   set app name
+  --app-version APP_VERSION
+                        set app version
+  --manufacturer MANUFACTURER
+                        set app manufacturer
 ```
