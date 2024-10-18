@@ -60,3 +60,20 @@ options:
   --manufacturer MANUFACTURER
                         set app manufacturer
 ```
+
+### sbom-to-odt
+
+```
+prompt> python sbom-to-odt.py --help
+
+usage: sbom-to-odt.py [-h] input output
+
+sbom to odt converter
+
+positional arguments:
+  input       sbom file
+  output      odt file
+
+options:
+  -h, --help  show this help message and exit
+```
