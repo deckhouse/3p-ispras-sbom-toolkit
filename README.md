@@ -43,7 +43,7 @@ prompt> python sbom-updater.py --help
 
 usage: sbom-updater.py [-h] [--props] [--app-name APP_NAME]
                        [--app-version APP_VERSION]
-                       [--manufacturer MANUFACTURER] [--fix-all]
+                       [--manufacturer MANUFACTURER] [--ref] [--fix-all]
                        input output
 
 sbom file updater
@@ -63,6 +63,8 @@ options:
                         set app version
   --manufacturer MANUFACTURER
                         set app manufacturer
+  --ref                 add externalReferences field for every component based
+                        on its purl
   --fix-all             apply all of the above commands; if the required field
                         is missing and its value is not set in command line,
                         "TODO" is used
