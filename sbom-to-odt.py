@@ -23,11 +23,16 @@ with open(args.input, 'r') as f:
     input_data = json.load(f)
 
 doc = load('./template.odt')
+stack = input_data.get('components', []).copy()
+idx = 1
 for item in doc.getElementsByType(Table):
-    for idx, comp in enumerate(input_data.get('components', [])):
+    while stack:
+        comp = stack.pop(0)
+        if 'components' in comp:
+            stack += comp['components']
         tr = TableRow(stylename='Table3.1')
         tc = TableCell(stylename='Table3.A1')
-        tc.addElement(P(text=str(idx+1), stylename='P3'))
+        tc.addElement(P(text=str(idx), stylename='P3'))
         tr.addElement(tc)
         tc = TableCell(stylename='Table3.A1')
         tc.addElement(P(text=comp.get('name', ''), stylename='P3'))
@@ -54,5 +59,6 @@ for item in doc.getElementsByType(Table):
         tc.addElement(P(text=comp.get('externalReferences', [{'url':''}])[0].get('url', ''), stylename='P3'))
         tr.addElement(tc)
         item.addElement(tr)
+        idx += 1
 
 doc.save(args.output)
