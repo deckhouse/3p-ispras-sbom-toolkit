@@ -26,6 +26,7 @@ parser.add_argument('--app-version', help='set app version')
 parser.add_argument('--manufacturer', help='set app manufacturer')
 parser.add_argument('--ref', action='store_true', help='add externalReferences field for every component based on its purl')
 parser.add_argument('--fix-all', action='store_true', help=f'apply all of the above commands; if the required field is missing and its value is not set in command line, "{DEFAULT_VALUE}" is used')
+parser.add_argument('--update', metavar='OLD SBOM', help='set "properties" field in components from input file based on OLD SBOM')
 
 args = parser.parse_args()
 with open(args.input, 'r') as f:
@@ -148,6 +149,37 @@ if args.ref or args.fix_all:
                         continue
                 else:
                     purl_to_url[component['purl']] = None
+
+if args.update:
+    with open(args.update) as f:
+        old_data = json.load(f)
+    stack = old_data.get('components', [])
+    old_data_dict = dict()
+    while stack:
+        component = stack.pop(0)
+        comp_str = str({
+            'name': component['name'],
+            'version': component['version'],
+            'purl': component.get('purl', ''),
+            'externalReferences': sorted([sorted(er.items()) for er in component.get('externalReferences', [])])
+        })
+        old_data_dict[comp_str] = component.get('properties', [])
+        if 'components' in component:
+            stack += component['components']
+
+    stack = input_data.get('components', []).copy()
+    while stack:
+        component = stack.pop(0)
+        comp_str = str({
+            'name': component['name'],
+            'version': component['version'],
+            'purl': component.get('purl', ''),
+            'externalReferences': sorted([sorted(er.items()) for er in component.get('externalReferences', [])])
+        })
+        if comp_str in old_data_dict:
+            component['properties'] = old_data_dict[comp_str]
+        if 'components' in component:
+            stack += component['components']
 
 if 'metadata' in input_data:
     input_data['metadata']['timestamp'] = datetime.datetime.now(datetime.timezone.utc).isoformat()

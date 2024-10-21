@@ -44,6 +44,7 @@ prompt> python sbom-updater.py --help
 usage: sbom-updater.py [-h] [--props] [--app-name APP_NAME]
                        [--app-version APP_VERSION]
                        [--manufacturer MANUFACTURER] [--ref] [--fix-all]
+                       [--update OLD SBOM]
                        input output
 
 sbom file updater
@@ -68,6 +69,8 @@ options:
   --fix-all             apply all of the above commands; if the required field
                         is missing and its value is not set in command line,
                         "TODO" is used
+  --update OLD SBOM     set "properties" field in components from input file
+                        based on OLD SBOM
 ```
 
 ### sbom-to-odt
