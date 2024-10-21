@@ -5,6 +5,7 @@ import argparse
 import datetime
 import git
 import json
+import logging
 from requests import Session, adapters
 import xml.etree.ElementTree as ET
 
@@ -27,8 +28,11 @@ parser.add_argument('--manufacturer', help='set app manufacturer')
 parser.add_argument('--ref', action='store_true', help='add externalReferences field for every component based on its purl')
 parser.add_argument('--fix-all', action='store_true', help=f'apply all of the above commands; if the required field is missing and its value is not set in command line, "{DEFAULT_VALUE}" is used')
 parser.add_argument('--update', metavar='OLD SBOM', help='set "properties" field in components from input file based on OLD SBOM')
+parser.add_argument('-v', '--verbose', action='store_true', help='verbose output')
 
 args = parser.parse_args()
+if args.verbose:
+    logging.basicConfig(format='%(message)s', level="INFO")
 with open(args.input, 'r') as f:
     input_data = json.load(f)
 
@@ -51,10 +55,12 @@ if not args.app_name is None or args.fix_all:
     if not 'component' in input_data['metadata']:
         input_data['metadata']['component'] = dict()
     if not args.app_name is None:
+        if 'name' in input_data['metadata']['component']:
+            logging.info(f"changed app name {input_data['metadata']['component']['name']} -> {args.app_name}")
+            logging.info('-'*50)
         input_data['metadata']['component']['name'] = args.app_name
     elif not 'name' in input_data['metadata']['component']:
         input_data['metadata']['component']['name'] = DEFAULT_VALUE
-
 
 if not args.app_version is None or args.fix_all:
     if not 'metadata' in input_data:
@@ -62,6 +68,9 @@ if not args.app_version is None or args.fix_all:
     if not 'component' in input_data['metadata']:
         input_data['metadata']['component'] = dict()
     if not args.app_version is None:
+        if 'version' in input_data['metadata']['component']:
+            logging.info(f"changed app version {input_data['metadata']['component']['version']} -> {args.app_version}")
+            logging.info('-'*50)
         input_data['metadata']['component']['version'] = args.app_version
     elif not 'version' in input_data['metadata']['component']:
         input_data['metadata']['component']['version'] = DEFAULT_VALUE
@@ -74,6 +83,9 @@ if not args.manufacturer is None or args.fix_all:
     if not 'manufacturer' in input_data['metadata']['component']:
         input_data['metadata']['component']['manufacturer'] = dict()
     if not args.manufacturer is None:
+        if 'name' in input_data['metadata']['component']['manufacturer']:
+            logging.info(f"changed app manufacturer {input_data['metadata']['component']['manufacturer']['name']} -> {args.manufacturer}")
+            logging.info('-'*50)
         input_data['metadata']['component']['manufacturer']['name'] = args.manufacturer
     elif not 'name' in input_data['metadata']['component']['manufacturer']:
         input_data['metadata']['component']['manufacturer']['name'] = DEFAULT_VALUE
@@ -96,6 +108,7 @@ if args.ref or args.fix_all:
                     if purl_to_url[component['purl']]:
                         component['externalReferences'] = [{'type':'vcs', 'url': purl_to_url[component['purl']]}]
                     continue
+                logging.info(f'processing purl {component["purl"]}')
                 id, version = component['purl'].split("@")
                 if id.startswith('pkg:nuget/'):
                     id = id[10:]
@@ -119,7 +132,7 @@ if args.ref or args.fix_all:
                                     if child2.attrib.get("url", ''):
                                         if not child2.attrib['url'] in urls:
                                             urls.append(child2.attrib['url'])
-                    urls = reversed(urls)
+                    urls = list(reversed(urls))
                 elif id.startswith('pkg:gem/'):
                     id = id[8:]
                     gem_data = dict()
@@ -136,6 +149,8 @@ if args.ref or args.fix_all:
                         if url and not url in urls:
                             urls.append(url)
                 else:
+                    logging.info(f'unknown purl prefix {component["purl"]}')
+                    logging.info('-'*50)
                     continue
                 for url in urls:
                     if url.startswith('git://'):
@@ -144,11 +159,14 @@ if args.ref or args.fix_all:
                         ls_res = g.ls_remote(url)
                         component['externalReferences'] = [{'type':'vcs', 'url': url}]
                         purl_to_url[component['purl']] = url
+                        logging.info(f'set url to {url}')
                         break
                     except Exception as e:
                         continue
                 else:
+                    logging.info(f'none of {urls} are git repositories')
                     purl_to_url[component['purl']] = None
+                logging.info('-'*50)
 
 if args.update:
     with open(args.update) as f:
@@ -178,6 +196,8 @@ if args.update:
         })
         if comp_str in old_data_dict:
             component['properties'] = old_data_dict[comp_str]
+            logging.info(f"set {component} \n\"properties\" to \n{component['properties']}")
+            logging.info('-'*50)
         if 'components' in component:
             stack += component['components']
 
