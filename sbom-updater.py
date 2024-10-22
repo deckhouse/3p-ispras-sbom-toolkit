@@ -188,20 +188,54 @@ if args.update:
         key = (component['name'], component['version'])
         if key in old_data_dict:
             if any(old_data_dict[key].values()):
-                logging.info(f"у компонента {component} присвоить полю")
+                logging.info(f"для компонента {component} присвоение полю")
             if old_data_dict[key]['properties']:
-                logging.info(f"\"properties\" значение:\n{old_data_dict[key]['properties']}")
+                logging.info(f"\"properties\" значения:\n{old_data_dict[key]['properties']}")
                 component['properties'] = old_data_dict[key]['properties']
             if old_data_dict[key]['purl']:
-                logging.info(f"\"purl\" значение:\n{old_data_dict[key]['purl']}")
+                logging.info(f"\"purl\" значения:\n{old_data_dict[key]['purl']}")
                 component['purl'] = old_data_dict[key]['purl']
             if old_data_dict[key]['externalReferences']:
-                logging.info(f"\"externalReferences\" значение:\n{old_data_dict[key]['externalReferences']}")
+                logging.info(f"\"externalReferences\" значения:\n{old_data_dict[key]['externalReferences']}")
                 component['externalReferences'] = old_data_dict[key]['externalReferences']
             if any(old_data_dict[key].values()):
                 logging.info('-'*50)
         if 'components' in component:
             stack += component['components']
+
+    if 'metadata' in old_data and 'component' in old_data['metadata'] and 'name' in old_data['metadata']['component']:
+        old_name = old_data['metadata']['component']['name']
+        if not 'metadata' in input_data:
+            input_data['metadata'] = dict()
+        if not 'component' in input_data['metadata']:
+            input_data['metadata']['component'] = dict()
+        if not 'name' in input_data['metadata']['component']:
+            logging.info(f"перенос названия продукта: {old_name}")
+            logging.info('-'*50)
+            input_data['metadata']['component']['name'] = old_name
+    if 'metadata' in old_data and 'component' in old_data['metadata'] and 'version' in old_data['metadata']['component']:
+        old_version = old_data['metadata']['component']['version']
+        if not 'metadata' in input_data:
+            input_data['metadata'] = dict()
+        if not 'component' in input_data['metadata']:
+            input_data['metadata']['component'] = dict()
+        if not 'version' in input_data['metadata']['component']:
+            logging.info(f"перенос версии продукта: {old_version}")
+            logging.info('-'*50)
+            input_data['metadata']['component']['version'] = old_version
+    if 'metadata' in old_data and 'component' in old_data['metadata'] and 'manufacturer' in old_data['metadata']['component'] and \
+        'name' in old_data['metadata']['component']['manufacturer']:
+        old_manufacturer = old_data['metadata']['component']['manufacturer']['name']
+        if not 'metadata' in input_data:
+            input_data['metadata'] = dict()
+        if not 'component' in input_data['metadata']:
+            input_data['metadata']['component'] = dict()
+        if not 'manufacturer' in input_data['metadata']['component']:
+            input_data['metadata']['component']['manufacturer'] = dict()
+        if not 'name' in input_data['metadata']['component']['manufacturer']:
+            logging.info(f"перенос названия организации: {old_manufacturer}")
+            logging.info('-'*50)
+            input_data['metadata']['component']['manufacturer']['name'] = old_manufacturer
 
 if 'metadata' in input_data:
     input_data['metadata']['timestamp'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
