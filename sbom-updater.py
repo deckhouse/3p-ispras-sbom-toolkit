@@ -175,29 +175,31 @@ if args.update:
     old_data_dict = dict()
     while stack:
         component = stack.pop(0)
-        comp_str = str({
-            'name': component['name'],
-            'version': component['version'],
-            'purl': component.get('purl', ''),
-            'externalReferences': sorted([sorted(er.items()) for er in component.get('externalReferences', [])])
-        })
-        old_data_dict[comp_str] = component.get('properties', [])
+        old_data_dict[(component['name'], component['version'])] = dict()
+        old_data_dict[(component['name'], component['version'])]['properties'] = component.get('properties', [])
+        old_data_dict[(component['name'], component['version'])]['purl'] = component.get('purl', '')
+        old_data_dict[(component['name'], component['version'])]['externalReferences'] = component.get('externalReferences', [])
         if 'components' in component:
             stack += component['components']
 
     stack = input_data.get('components', []).copy()
     while stack:
         component = stack.pop(0)
-        comp_str = str({
-            'name': component['name'],
-            'version': component['version'],
-            'purl': component.get('purl', ''),
-            'externalReferences': sorted([sorted(er.items()) for er in component.get('externalReferences', [])])
-        })
-        if comp_str in old_data_dict:
-            component['properties'] = old_data_dict[comp_str]
-            logging.info(f"set {component} \n\"properties\" to \n{component['properties']}")
-            logging.info('-'*50)
+        key = (component['name'], component['version'])
+        if key in old_data_dict:
+            if any(old_data_dict[key].values()):
+                logging.info(f"set {component}")
+            if old_data_dict[key]['properties']:
+                logging.info(f"\"properties\" to \n{old_data_dict[key]['properties']}")
+                component['properties'] = old_data_dict[key]['properties']
+            if old_data_dict[key]['purl']:
+                logging.info(f"\"purl\" to \n{old_data_dict[key]['purl']}")
+                component['purl'] = old_data_dict[key]['purl']
+            if old_data_dict[key]['externalReferences']:
+                logging.info(f"\"externalReferences\" to \n{old_data_dict[key]['externalReferences']}")
+                component['externalReferences'] = old_data_dict[key]['externalReferences']
+            if any(old_data_dict[key].values()):
+                logging.info('-'*50)
         if 'components' in component:
             stack += component['components']
 
