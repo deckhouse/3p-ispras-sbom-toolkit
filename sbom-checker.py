@@ -6,11 +6,11 @@ import json
 import jsonschema
 from pathlib import Path
 
-parser = argparse.ArgumentParser(description='json schema checker')
-parser.add_argument('json', help='schema file', nargs='?', default='./schema.json')
-parser.add_argument('filename', help='file to check')
+parser = argparse.ArgumentParser(description='проверка sbom-файлов')
+parser.add_argument('json', help='файл-спецификация; по умолчанию ./schema.json', nargs='?', default='./schema.json')
+parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
 parser.add_argument('-e', '--errors', type=int, default=10,
-                    help='set maximum amount of validator errors shown; default is 10; set to 0 to show all errors')
+                    help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 
 args = parser.parse_args()
 with open(args.json) as f:
@@ -40,7 +40,7 @@ with open(args.filename) as f:
             if limit and count == limit:
                 break
         if count == 0:
-            print('file is valid')
+            print('файл корректный')
     except jsonschema.exceptions.SchemaError as se:
-        print('schema error:')
+        print('ошибка в файле-спецификации:')
         print(se)

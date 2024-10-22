@@ -17,18 +17,18 @@ def has_prop(arr, name):
             return True
     return False
 
-parser = argparse.ArgumentParser(description='sbom file updater')
-parser.add_argument('input', help='sbom file')
-parser.add_argument('output', help='updated file')
+parser = argparse.ArgumentParser(description='изменение sbom-файлов')
+parser.add_argument('input', help='входной файл в формате CycloneDX JSON, содержащий актуальную информацию о составе заимствованных компонентов')
+parser.add_argument('output', help='выходной файл с дооформленным переченем заимствованных компонентов')
 parser.add_argument('--props', action='store_true',
-                    help='add {"name": "GOST:attack_surface", "value": "yes"} and {"name": "GOST:security_function", "value": "yes"} to "properties" property of every component in the input file')
-parser.add_argument('--app-name', help='set app name')
-parser.add_argument('--app-version', help='set app version')
-parser.add_argument('--manufacturer', help='set app manufacturer')
-parser.add_argument('--ref', action='store_true', help='add externalReferences field for every component based on its purl')
-parser.add_argument('--fix-all', action='store_true', help=f'apply all of the above commands; if the required field is missing and its value is not set in command line, "{DEFAULT_VALUE}" is used')
-parser.add_argument('--update', metavar='OLD SBOM', help='set "properties" field in components from input file based on OLD SBOM')
-parser.add_argument('-v', '--verbose', action='store_true', help='verbose output')
+                    help='добавить {"name": "GOST:attack_surface", "value": "yes"} и {"name": "GOST:security_function", "value": "yes"} в поле "properties" для каждого компонента входного файла, при их отсутствии')
+parser.add_argument('--app-name', help='установить название продукта')
+parser.add_argument('--app-version', help='установить версию продукта')
+parser.add_argument('--manufacturer', help='установить название организации — изготовителя продукта')
+parser.add_argument('--ref', action='store_true', help='установить поле "externalReferences", основываясь на поле "purl" компонента')
+parser.add_argument('--fix-all', action='store_true', help=f'применить все вышеописанные опции; если необходимое поле остутствует и его значение не указано, используется "{DEFAULT_VALUE}"')
+parser.add_argument('--update', metavar='OLD_SBOM', help='предыдущая версия переченя заимствованных компонентов, состав и версии которых могли устареть, но метаинформация о приложении и компонентах по возможности переносится в новый перечень')
+parser.add_argument('-v', '--verbose', action='store_true', help='побробный вывод')
 
 args = parser.parse_args()
 if args.verbose:
@@ -56,7 +56,7 @@ if not args.app_name is None or args.fix_all:
         input_data['metadata']['component'] = dict()
     if not args.app_name is None:
         if 'name' in input_data['metadata']['component']:
-            logging.info(f"changed app name {input_data['metadata']['component']['name']} -> {args.app_name}")
+            logging.info(f"смена названия продукта {input_data['metadata']['component']['name']} -> {args.app_name}")
             logging.info('-'*50)
         input_data['metadata']['component']['name'] = args.app_name
     elif not 'name' in input_data['metadata']['component']:
@@ -69,7 +69,7 @@ if not args.app_version is None or args.fix_all:
         input_data['metadata']['component'] = dict()
     if not args.app_version is None:
         if 'version' in input_data['metadata']['component']:
-            logging.info(f"changed app version {input_data['metadata']['component']['version']} -> {args.app_version}")
+            logging.info(f"смена версии продукта {input_data['metadata']['component']['version']} -> {args.app_version}")
             logging.info('-'*50)
         input_data['metadata']['component']['version'] = args.app_version
     elif not 'version' in input_data['metadata']['component']:
@@ -84,7 +84,7 @@ if not args.manufacturer is None or args.fix_all:
         input_data['metadata']['component']['manufacturer'] = dict()
     if not args.manufacturer is None:
         if 'name' in input_data['metadata']['component']['manufacturer']:
-            logging.info(f"changed app manufacturer {input_data['metadata']['component']['manufacturer']['name']} -> {args.manufacturer}")
+            logging.info(f"смена названия организации {input_data['metadata']['component']['manufacturer']['name']} -> {args.manufacturer}")
             logging.info('-'*50)
         input_data['metadata']['component']['manufacturer']['name'] = args.manufacturer
     elif not 'name' in input_data['metadata']['component']['manufacturer']:
@@ -108,7 +108,7 @@ if args.ref or args.fix_all:
                     if purl_to_url[component['purl']]:
                         component['externalReferences'] = [{'type':'vcs', 'url': purl_to_url[component['purl']]}]
                     continue
-                logging.info(f'processing purl {component["purl"]}')
+                logging.info(f'обработка purl {component["purl"]}')
                 id, version = component['purl'].split("@")
                 if id.startswith('pkg:nuget/'):
                     id = id[10:]
@@ -149,7 +149,7 @@ if args.ref or args.fix_all:
                         if url and not url in urls:
                             urls.append(url)
                 else:
-                    logging.info(f'unknown purl prefix {component["purl"]}')
+                    logging.info(f'неизвестный префикс purl {component["purl"]}')
                     logging.info('-'*50)
                     continue
                 for url in urls:
@@ -159,12 +159,12 @@ if args.ref or args.fix_all:
                         ls_res = g.ls_remote(url)
                         component['externalReferences'] = [{'type':'vcs', 'url': url}]
                         purl_to_url[component['purl']] = url
-                        logging.info(f'set url to {url}')
+                        logging.info(f'присвоить url {url}')
                         break
                     except Exception as e:
                         continue
                 else:
-                    logging.info(f'none of {urls} are git repositories')
+                    logging.info(f'ни одна из {urls} не является git-репозиторием')
                     purl_to_url[component['purl']] = None
                 logging.info('-'*50)
 
@@ -188,15 +188,15 @@ if args.update:
         key = (component['name'], component['version'])
         if key in old_data_dict:
             if any(old_data_dict[key].values()):
-                logging.info(f"set {component}")
+                logging.info(f"у компонента {component} присвоить полю")
             if old_data_dict[key]['properties']:
-                logging.info(f"\"properties\" to \n{old_data_dict[key]['properties']}")
+                logging.info(f"\"properties\" значение:\n{old_data_dict[key]['properties']}")
                 component['properties'] = old_data_dict[key]['properties']
             if old_data_dict[key]['purl']:
-                logging.info(f"\"purl\" to \n{old_data_dict[key]['purl']}")
+                logging.info(f"\"purl\" значение:\n{old_data_dict[key]['purl']}")
                 component['purl'] = old_data_dict[key]['purl']
             if old_data_dict[key]['externalReferences']:
-                logging.info(f"\"externalReferences\" to \n{old_data_dict[key]['externalReferences']}")
+                logging.info(f"\"externalReferences\" значение:\n{old_data_dict[key]['externalReferences']}")
                 component['externalReferences'] = old_data_dict[key]['externalReferences']
             if any(old_data_dict[key].values()):
                 logging.info('-'*50)

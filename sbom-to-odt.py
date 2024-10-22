@@ -14,9 +14,9 @@ def get_prop(arr, name):
             return elem.get('value', '')
     return ''
 
-parser = argparse.ArgumentParser(description='sbom to odt converter')
-parser.add_argument('input', help='sbom file')
-parser.add_argument('output', help='odt file')
+parser = argparse.ArgumentParser(description='генератор таблицы компонентов в формате odt')
+parser.add_argument('input', help='входной файл в формате CycloneDX JSON, содержащий актуальную информацию о составе заимствованных компонентов')
+parser.add_argument('output', help='выходной файл в формате odt, содержащий таблицу со всеми компонентами из входного файла')
 
 args = parser.parse_args()
 with open(args.input, 'r') as f:

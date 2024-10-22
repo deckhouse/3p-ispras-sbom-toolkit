@@ -23,17 +23,17 @@ prompt> python sbom-checker.py --help
 
 usage: sbom-checker.py [-h] [-e ERRORS] [json] filename
 
-json schema checker
+проверка sbom-файлов
 
 positional arguments:
-  json                  schema file
-  filename              file to check
+  json                  файл-спецификация; по умолчанию ./schema.json
+  filename              входной файл в формате CycloneDX JSON для проверки
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -e ERRORS, --errors ERRORS
-                        set maximum amount of validator errors shown; default
-                        is 10; set to 0 to show all errors
+                        максимальное число ошибок для вывода; по умолчанию 10;
+                        установите 0 для вывода всех ошибок
 ```
 
 ### sbom-updater
@@ -44,34 +44,40 @@ prompt> python sbom-updater.py --help
 usage: sbom-updater.py [-h] [--props] [--app-name APP_NAME]
                        [--app-version APP_VERSION]
                        [--manufacturer MANUFACTURER] [--ref] [--fix-all]
-                       [--update OLD SBOM] [-v]
+                       [--update OLD_SBOM] [-v]
                        input output
 
-sbom file updater
+изменение sbom-файлов
 
 positional arguments:
-  input                 sbom file
-  output                updated file
+  input                 входной файл в формате CycloneDX JSON, содержащий
+                        актуальную информацию о составе заимствованных
+                        компонентов
+  output                выходной файл с дооформленным переченем заимствованных
+                        компонентов
 
 options:
   -h, --help            show this help message and exit
-  --props               add {"name": "GOST:attack_surface", "value": "yes"}
-                        and {"name": "GOST:security_function", "value": "yes"}
-                        to "properties" property of every component in the
-                        input file
-  --app-name APP_NAME   set app name
+  --props               добавить {"name": "GOST:attack_surface", "value":
+                        "yes"} и {"name": "GOST:security_function", "value":
+                        "yes"} в поле "properties" для каждого компонента
+                        входного файла, при их отсутствии
+  --app-name APP_NAME   установить название продукта
   --app-version APP_VERSION
-                        set app version
+                        установить версию продукта
   --manufacturer MANUFACTURER
-                        set app manufacturer
-  --ref                 add externalReferences field for every component based
-                        on its purl
-  --fix-all             apply all of the above commands; if the required field
-                        is missing and its value is not set in command line,
-                        "TODO" is used
-  --update OLD SBOM     set "properties" field in components from input file
-                        based on OLD SBOM
-  -v, --verbose         verbose output
+                        установить название организации — изготовителя
+                        продукта
+  --ref                 установить поле "externalReferences", основываясь на
+                        поле "purl" компонента
+  --fix-all             применить все вышеописанные опции; если необходимое
+                        поле остутствует и его значение не указано,
+                        используется "TODO"
+  --update OLD_SBOM     предыдущая версия переченя заимствованных компонентов,
+                        состав и версии которых могли устареть, но
+                        метаинформация о приложении и компонентах по
+                        возможности переносится в новый перечень
+  -v, --verbose         побробный вывод
 ```
 
 ### sbom-to-odt
@@ -81,11 +87,13 @@ prompt> python sbom-to-odt.py --help
 
 usage: sbom-to-odt.py [-h] input output
 
-sbom to odt converter
+генератор таблицы компонентов в формате odt
 
 positional arguments:
-  input       sbom file
-  output      odt file
+  input       входной файл в формате CycloneDX JSON, содержащий актуальную
+              информацию о составе заимствованных компонентов
+  output      выходной файл в формате odt, содержащий таблицу со всеми
+              компонентами из входного файла
 
 options:
   -h, --help  show this help message and exit
