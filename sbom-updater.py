@@ -17,6 +17,91 @@ def has_prop(arr, name):
             return True
     return False
 
+class RefFinder(object):
+    def __init__(self):
+        self._git = git.cmd.Git()
+        self._nuget_addr = None
+        self._session = Session()
+        adapter = adapters.HTTPAdapter(max_retries=5)
+        self._session.mount('http://', adapter=adapter)
+        self._session.mount('https://', adapter=adapter)
+        self._purl_to_url = dict()
+        self._prefixes = {
+            'pkg:nuget/': self._nuget_purl,
+            'pkg:gem/': self._gem_purl,
+        }
+
+    def process_purl(self, purl):
+        if purl in self._purl_to_url:
+            return self._purl_to_url[purl]
+        logging.info(f'обработка purl {purl}')
+        for k, f in self._prefixes.items():
+            if purl.startswith(k):
+                urls = f(purl)
+                for url in urls:
+                    if url.startswith('git://'):
+                        url = "https" + url[3:]
+                    try:
+                        ls_res = self._git.ls_remote(url)
+                        self._purl_to_url[purl] = url
+                        logging.info(f'найден репозиторий {url} среди {urls}')
+                        logging.info('-'*50)
+                        return url
+                    except Exception as e:
+                        continue
+                logging.info(f'ни одна из {urls} не является git-репозиторием')
+                logging.info('-'*50)
+                self._purl_to_url[purl] = None
+                return None
+        logging.info(f'неизвестный префикс purl {purl}')
+        logging.info('-'*50)
+        self._purl_to_url[purl] = None
+        return None
+
+    def _nuget_purl(self, purl):
+        id, version = purl.split("@")
+        id = id[10:]
+        if not self._nuget_addr:
+            with self._session.get("https://api.nuget.org/v3/index.json") as res:
+                for resource in res.json().get("resources", []):
+                    if resource["@type"].startswith("PackageBaseAddress"):
+                        self._nuget_addr = resource["@id"]
+        package_address = f"{self._nuget_addr}{id.lower()}/{version.lower()}/{id.lower()}.nuspec"
+        root = []
+        with self._session.get(package_address) as res:
+            root = ET.fromstring(res.text)
+        urls = []
+        for child in root:
+            if child.tag.endswith("metadata"):
+                for child2 in child:
+                    if child2.tag.endswith("projectUrl"):
+                        if not child2.text in urls:
+                            urls.append(child2.text)
+                    elif child2.tag.endswith("repository"):
+                        if child2.attrib.get("url", ''):
+                            if not child2.attrib['url'] in urls:
+                                urls.append(child2.attrib['url'])
+        return list(reversed(urls))
+
+    def _gem_purl(self, purl):
+        id, version = purl.split("@")
+        id = id[8:]
+        gem_data = dict()
+        urls = []
+        kws = ['source_code_uri', 'project_uri', 'homepage_uri']
+        with self._session.get(f'https://rubygems.org/api/v2/rubygems/{id.lower()}/versions/{version.lower()}.json') as res:
+            gem_data = res.json()
+        md = gem_data.get('metadata', dict())
+        for kw in kws:
+            url = gem_data.get(kw, '')
+            if url and not url in urls:
+                urls.append(url)
+            url = md.get(kw, '')
+            if url and not url in urls:
+                urls.append(url)
+        return urls
+
+
 parser = argparse.ArgumentParser(description='изменение sbom-файлов')
 parser.add_argument('input', help='входной файл в формате CycloneDX JSON, содержащий актуальную информацию о составе заимствованных компонентов')
 parser.add_argument('output', help='выходной файл с дооформленным переченем заимствованных компонентов')
@@ -91,82 +176,16 @@ if not args.manufacturer is None or args.fix_all:
         input_data['metadata']['component']['manufacturer']['name'] = DEFAULT_VALUE
 
 if args.ref or args.fix_all:
-    nuget_addr = ''
-    adapter = adapters.HTTPAdapter(max_retries=5)
-    g = git.cmd.Git()
-    purl_to_url = dict()
+    ref_finder = RefFinder()
     stack = input_data.get('components', []).copy()
-    with Session() as sess:
-        sess.mount('http://', adapter=adapter)
-        sess.mount('https://', adapter=adapter)
-        while stack:
-            component = stack.pop()
-            if 'components' in component:
-                stack += component['components']
-            if 'purl' in component and not 'externalReferences' in component:
-                if component['purl'] in purl_to_url:
-                    if purl_to_url[component['purl']]:
-                        component['externalReferences'] = [{'type':'vcs', 'url': purl_to_url[component['purl']]}]
-                    continue
-                logging.info(f'обработка purl {component["purl"]}')
-                id, version = component['purl'].split("@")
-                if id.startswith('pkg:nuget/'):
-                    id = id[10:]
-                    if not nuget_addr:
-                        with sess.get("https://api.nuget.org/v3/index.json") as res:
-                            for resource in res.json().get("resources", []):
-                                if resource["@type"].startswith("PackageBaseAddress"):
-                                    nuget_addr = resource["@id"]
-                    package_address = f"{nuget_addr}{id.lower()}/{version.lower()}/{id.lower()}.nuspec"
-                    root = []
-                    with sess.get(package_address) as res:
-                        root = ET.fromstring(res.text)
-                    urls = []
-                    for child in root:
-                        if child.tag.endswith("metadata"):
-                            for child2 in child:
-                                if child2.tag.endswith("projectUrl"):
-                                    if not child2.text in urls:
-                                        urls.append(child2.text)
-                                elif child2.tag.endswith("repository"):
-                                    if child2.attrib.get("url", ''):
-                                        if not child2.attrib['url'] in urls:
-                                            urls.append(child2.attrib['url'])
-                    urls = list(reversed(urls))
-                elif id.startswith('pkg:gem/'):
-                    id = id[8:]
-                    gem_data = dict()
-                    urls = []
-                    kws = ['source_code_uri', 'project_uri', 'homepage_uri']
-                    with sess.get(f'https://rubygems.org/api/v2/rubygems/{id.lower()}/versions/{version.lower()}.json') as res:
-                        gem_data = res.json()
-                    md = gem_data.get('metadata', dict())
-                    for kw in kws:
-                        url = gem_data.get(kw, '')
-                        if url and not url in urls:
-                            urls.append(url)
-                        url = md.get(kw, '')
-                        if url and not url in urls:
-                            urls.append(url)
-                else:
-                    logging.info(f'неизвестный префикс purl {component["purl"]}')
-                    logging.info('-'*50)
-                    continue
-                for url in urls:
-                    if url.startswith('git://'):
-                        url = "https" + url[3:]
-                    try:
-                        ls_res = g.ls_remote(url)
-                        component['externalReferences'] = [{'type':'vcs', 'url': url}]
-                        purl_to_url[component['purl']] = url
-                        logging.info(f'присвоить url {url}')
-                        break
-                    except Exception as e:
-                        continue
-                else:
-                    logging.info(f'ни одна из {urls} не является git-репозиторием')
-                    purl_to_url[component['purl']] = None
-                logging.info('-'*50)
+    while stack:
+        component = stack.pop()
+        if 'components' in component:
+            stack += component['components']
+        if 'purl' in component and not 'externalReferences' in component:
+            url = ref_finder.process_purl(component['purl'])
+            if url:
+                component['externalReferences'] = [{'type':'vcs', 'url': url}]
 
 if args.update:
     with open(args.update) as f:
@@ -242,4 +261,4 @@ if 'metadata' in input_data:
 if 'version' in input_data:
     input_data['version'] += 1
 with open(args.output, 'w') as f:
-    json.dump(input_data, f, indent=2)
+    json.dump(input_data, f, indent=2, ensure_ascii=False)
