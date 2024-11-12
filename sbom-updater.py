@@ -17,19 +17,37 @@ def has_prop(arr, name):
             return True
     return False
 
+def get_website(ref_arr):
+    for elem in ref_arr:
+        if elem['type'] == 'website':
+            return elem
+    return False
+
 class RefFinder(object):
-    def __init__(self):
+    def __init__(self, purl_file=None):
         self._git = git.cmd.Git()
         self._nuget_addr = None
         self._session = Session()
         adapter = adapters.HTTPAdapter(max_retries=5)
         self._session.mount('http://', adapter=adapter)
         self._session.mount('https://', adapter=adapter)
-        self._purl_to_url = dict()
         self._prefixes = {
             'pkg:nuget/': self._nuget_purl,
             'pkg:gem/': self._gem_purl,
         }
+        self._purl_to_url = dict()
+        try:
+            with open(purl_file) as f:
+                self._purl_to_url = json.load(f)
+        except Exception:
+            pass
+
+    def is_repo(self, url):
+        try:
+            ls_res = self._git.ls_remote(url)
+            return True
+        except Exception:
+            return False
 
     def process_purl(self, purl):
         if purl in self._purl_to_url:
@@ -41,13 +59,12 @@ class RefFinder(object):
                 for url in urls:
                     if url.startswith('git://'):
                         url = "https" + url[3:]
-                    try:
-                        ls_res = self._git.ls_remote(url)
+                    if self.is_repo(url):
                         self._purl_to_url[purl] = url
                         logging.info(f'найден репозиторий {url} среди {urls}')
                         logging.info('-'*50)
                         return url
-                    except Exception as e:
+                    else:
                         continue
                 logging.info(f'ни одна из {urls} не является git-репозиторием')
                 logging.info('-'*50)
@@ -176,16 +193,21 @@ if not args.manufacturer is None or args.fix_all:
         input_data['metadata']['component']['manufacturer']['name'] = DEFAULT_VALUE
 
 if args.ref or args.fix_all:
-    ref_finder = RefFinder()
+    ref_finder = RefFinder('./purl_to_vcs.json')
     stack = input_data.get('components', []).copy()
     while stack:
-        component = stack.pop()
+        component = stack.pop(0)
         if 'components' in component:
             stack += component['components']
         if 'purl' in component and not 'externalReferences' in component:
             url = ref_finder.process_purl(component['purl'])
             if url:
                 component['externalReferences'] = [{'type':'vcs', 'url': url}]
+        website_ref = get_website(component.get('externalReferences', []))
+        if website_ref and ref_finder.is_repo(website_ref['url']):
+            website_ref['type'] = 'vcs'
+            logging.info(f"смена типа с 'website' на 'vcs' для {website_ref['url']}")
+            logging.info('-'*50)
 
 if args.update:
     with open(args.update) as f:
