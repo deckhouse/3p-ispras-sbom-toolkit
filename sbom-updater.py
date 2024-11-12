@@ -138,6 +138,12 @@ if args.verbose:
 with open(args.input, 'r') as f:
     input_data = json.load(f)
 
+if args.fix_all:
+    if input_data['specVersion'] != '1.6':
+        logging.info(f"смена 'specVersion' с {input_data['specVersion']} на 1.6")
+        logging.info('-'*50)
+        input_data['specVersion'] = '1.6'
+
 if args.props or args.fix_all:
     stack = input_data.get('components', []).copy()
     while stack:
