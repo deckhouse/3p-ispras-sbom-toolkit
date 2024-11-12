@@ -41,7 +41,7 @@ for item in doc.getElementsByType(Table):
         tc.addElement(P(text=comp.get('version', ''), stylename='P3'))
         tr.addElement(tc)
         tc = TableCell(stylename='Table3.A1')
-        tc.addElement(P(text=', '.join(comp.get('source_langs', [])), stylename='P3'))
+        tc.addElement(P(text=get_prop(comp.get('properties', []), 'source_langs'), stylename='P3'))
         tr.addElement(tc)
         _as_text = ''
         _as = get_prop(comp.get('properties', []), 'GOST:attack_surface')
