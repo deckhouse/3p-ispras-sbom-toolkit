@@ -79,6 +79,18 @@ options:
                         возможности перенести в новый перечень
   -v, --verbose         побробный вывод
 ```
+#### purl_to_vcs.json
+
+Данный файл используется для заполнения поля `"externalReferences"` компонент на основе purl при использовании скрипта с опциями `--ref` или `--fix-all`.
+Содержимое файла должно представлять единственный объект, в котором ключ — purl, а значение — ссылка на репозиторий, где хранятся исходные файлы компонента.
+
+Пример содержания:
+```
+{
+  "pkg:gem/aasm@5.5.0": "https://github.com/aasm/aasm",
+  "pkg:nuget/NLog.Extensions.Logging@5.3.12": "https://github.com/NLog/NLog.Extensions.Logging"
+}
+```
 
 ### sbom-to-odt
 
