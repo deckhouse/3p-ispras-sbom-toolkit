@@ -23,10 +23,9 @@ with open(args.output, 'w', newline="") as file:
     writer = csv.writer(file)
     writer.writerow(['№ п/п','Наименование компонента', 'Версия компонента', 'Язык (языки) программирования, на котором написан компонент', 'Принадлежность компонента к поверхности атаки программного обеспечения и (или) к компонентам, реализующим функции безопасности', 'Адрес веб-ресурса, на котором расположен исходный код компонента'])
 
-
-
 stack = bom_json.get('components', []).copy()
 idx = 1
+added_elements = set()
 
 while stack:
     component = stack.pop(0)
@@ -49,9 +48,13 @@ while stack:
     if attack_surface in ['yes', 'indirect', 'no']: special_function["GOST:attack_surface"] = attack_surface
     security_function = get_prop(props, 'GOST:security_function')
     if security_function in ['yes', 'indirect', 'no']: special_function["GOST:security_function"] = security_function
+    element = (component['name'], component['version'], get_prop(props, 'source_langs'), special_function, urls)
+    if element in added_elements:
+        continue
+    added_elements.add(element)
     with open(args.output, 'a', newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([idx, component['name'], component['version'], get_prop(props, 'source_langs'),special_function, urls])
+        writer.writerow([idx, component['name'], component['version'], get_prop(props, 'source_langs'), special_function, urls])
     idx += 1
 
 

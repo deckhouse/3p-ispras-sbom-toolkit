@@ -25,32 +25,42 @@ with open(args.input, 'r') as f:
 doc = load('./template.odt')
 stack = input_data.get('components', []).copy()
 idx = 1
+added_elements = set()
 for item in doc.getElementsByType(Table):
     while stack:
         comp = stack.pop(0)
         if 'components' in comp:
             stack += comp['components']
+        element = (comp.get('name', ''),
+                   comp.get('version', ''),
+                   get_prop(comp.get('properties', []), 'source_langs'),
+                   get_prop(comp.get('properties', []), 'GOST:attack_surface'),
+                   get_prop(comp.get('properties', []), 'GOST:security_function'),
+                   comp.get('externalReferences', [{'url':''}])[0].get('url', ''))
+        if element in added_elements:
+            continue
+        added_elements.add(element)
         tr = TableRow(stylename='Table3.1')
         tc = TableCell(stylename='Table3.A1')
         tc.addElement(P(text=str(idx), stylename='P3'))
         tr.addElement(tc)
         tc = TableCell(stylename='Table3.A1')
-        tc.addElement(P(text=comp.get('name', ''), stylename='P3'))
+        tc.addElement(P(text=element[0], stylename='P3'))
         tr.addElement(tc)
         tc = TableCell(stylename='Table3.A1')
-        tc.addElement(P(text=comp.get('version', ''), stylename='P3'))
+        tc.addElement(P(text=element[1], stylename='P3'))
         tr.addElement(tc)
         tc = TableCell(stylename='Table3.A1')
-        tc.addElement(P(text=get_prop(comp.get('properties', []), 'source_langs'), stylename='P3'))
+        tc.addElement(P(text=element[2], stylename='P3'))
         tr.addElement(tc)
         _as_text = ''
-        _as = get_prop(comp.get('properties', []), 'GOST:attack_surface')
+        _as = element[3]
         if _as == 'yes':
             _as_text = 'поверхность атаки'
         elif _as == 'indirect':
             _as_text = 'косвенная поверхность атаки'
         _sf_text = ''
-        _sf = get_prop(comp.get('properties', []), 'GOST:security_function')
+        _sf = element[4]
         if _sf == 'yes':
             _sf_text = 'функция безопасности'
         elif _sf == 'indirect':
@@ -59,7 +69,7 @@ for item in doc.getElementsByType(Table):
         tc.addElement(P(text=(', '.join([_as_text, _sf_text]) if _as_text and _sf_text else (_as_text+_sf_text)), stylename='P3'))
         tr.addElement(tc)
         tc = TableCell(stylename='Table3.A1')
-        tc.addElement(P(text=comp.get('externalReferences', [{'url':''}])[0].get('url', ''), stylename='P3'))
+        tc.addElement(P(text=element[5], stylename='P3'))
         tr.addElement(tc)
         item.addElement(tr)
         idx += 1
