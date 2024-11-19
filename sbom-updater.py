@@ -25,6 +25,7 @@ def get_website(ref_arr):
 
 class RefFinder(object):
     def __init__(self, purl_file=None):
+        self._placeholder_url = 'sbom-updater_generated_placeholder:'
         self._git = git.cmd.Git()
         self._nuget_addr = None
         self._session = Session()
@@ -53,27 +54,39 @@ class RefFinder(object):
         if purl in self._purl_to_url:
             return self._purl_to_url[purl]
         logging.info(f'обработка purl {purl}')
-        for k, f in self._prefixes.items():
-            if purl.startswith(k):
-                urls = f(purl)
-                for url in urls:
-                    if url.startswith('git://'):
-                        url = "https" + url[3:]
-                    if self.is_repo(url):
-                        self._purl_to_url[purl] = url
-                        logging.info(f'найден репозиторий {url} среди {urls}')
-                        logging.info('-'*50)
-                        return url
-                    else:
-                        continue
-                logging.info(f'ни одна из {urls} не является git-репозиторием')
-                logging.info('-'*50)
-                self._purl_to_url[purl] = None
-                return None
-        logging.info(f'неизвестный префикс purl {purl}')
+
+        urls = self._ecosystems(purl)
+        url = self._analyse_urls(urls, purl, 'ecosyste.ms: ')
+        if not url:
+            for k, f in self._prefixes.items():
+                if purl.startswith(k):
+                    urls = f(purl)
+                    url = self._analyse_urls(urls, purl, '')
+                    break
+            else:
+                logging.info(f'неизвестный префикс purl {purl}')
         logging.info('-'*50)
-        self._purl_to_url[purl] = None
+        self._purl_to_url[purl] = url if url else self._placeholder_url
+        return self._purl_to_url[purl]
+
+    def _analyse_urls(self, urls, purl, log_prefix):
+        for url in urls:
+            if url.startswith('git://'):
+                url = "https" + url[3:]
+            if self.is_repo(url):
+                logging.info(f'{log_prefix}найден репозиторий {url} среди {urls}')
+                return url
+        logging.info(f'{log_prefix}ни одна из {urls} не является git-репозиторием')
         return None
+
+    def _ecosystems(self, purl):
+        ecosystems_data = None
+        with self._session.get(f"https://packages.ecosyste.ms/api/v1/packages/lookup?purl={purl.lower()}") as res:
+            ecosystems_data = res.json()
+        if ecosystems_data:
+            ecosystems_data = ecosystems_data[0]
+            return [ecosystems_data.get("repository_url", ''), ecosystems_data.get("registry_url", ''), ecosystems_data.get("homepage", '')]
+        return []
 
     def _nuget_purl(self, purl):
         id, version = purl.split("@")
@@ -127,7 +140,7 @@ parser.add_argument('--props', action='store_true',
 parser.add_argument('--app-name', help='установить название продукта')
 parser.add_argument('--app-version', help='установить версию продукта')
 parser.add_argument('--manufacturer', help='установить название организации — изготовителя продукта')
-parser.add_argument('--ref', action='store_true', help='установить поле "externalReferences", основываясь на поле "purl" компонента')
+parser.add_argument('--ref', action='store_true', help='установить поле "externalReferences", основываясь на поле "purl" компонента; если ссылки на репозиторий не было найдено, используется "sbom-updater_generated_placeholder:"')
 parser.add_argument('--fix-all', action='store_true', help=f'применить все вышеописанные опции; если необходимое поле остутствует и его значение не указано, используется "{DEFAULT_VALUE}"')
 parser.add_argument('--update', metavar='OLD_SBOM', help='предыдущая версия перечня заимствованных компонентов, состав и версии которых могли устареть, но метаинформацию о приложении и компонентах требуется по возможности перенести в новый перечень')
 parser.add_argument('-v', '--verbose', action='store_true', help='побробный вывод')
