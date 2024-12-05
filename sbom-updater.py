@@ -71,11 +71,12 @@ class RefFinder(object):
 
     def _analyse_urls(self, urls, purl, log_prefix):
         for url in urls:
-            if url.startswith('git://'):
-                url = "https" + url[3:]
-            if self.is_repo(url):
-                logging.info(f'{log_prefix}найден репозиторий {url} среди {urls}')
-                return url
+            if type(url) == str:
+                if url.startswith('git://'):
+                    url = "https" + url[3:]
+                if self.is_repo(url):
+                    logging.info(f'{log_prefix}найден репозиторий {url} среди {urls}')
+                    return url
         logging.info(f'{log_prefix}ни одна из {urls} не является git-репозиторием')
         return None
 
