@@ -64,7 +64,7 @@ class RefFinder(object):
                     url = self._analyse_urls(urls, purl, '')
                     break
             else:
-                logging.info(f'неизвестный префикс purl {purl}')
+                logging.info(f'не удалось найти репозиторий для purl {purl}')
         logging.info('-'*50)
         self._purl_to_url[purl] = url if url else self._placeholder_url
         return self._purl_to_url[purl]
