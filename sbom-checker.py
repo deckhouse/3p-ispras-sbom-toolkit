@@ -8,29 +8,27 @@ from pathlib import Path
 from referencing import Registry, Resource
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
-parser.add_argument('json', help='файл-спецификация; по умолчанию ./schema.json', nargs='?', default='./schema.json')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
-parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git-репозиторий')
+parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git-репозиторий (требуется доступ к Интернет)')
 
-args = parser.parse_args()
-with open(args.json) as f:
+with open('./schema.json') as f:
     schema = json.load(f)
 
 registry = None
-if Path(args.json).samefile(Path('./schema.json')): # to resolve references to schemas on local filesystem
-    with open(Path(__file__).parent.resolve() / 'additional_schemas' / "spdx.schema.json") as f:
-        resource1 = Resource.from_contents(json.load(f))
-    with open(Path(__file__).parent.resolve() / 'additional_schemas' / "jsf-0.82.schema.json") as f:
-        resource2 = Resource.from_contents(json.load(f))
-    registry = Registry().with_resources(
-        [
-            ("spdx.schema.json", resource1),
-            ("jsf-0.82.schema.json", resource2),
-        ],
-    )
+with open(Path(__file__).parent.resolve() / 'additional_schemas' / "spdx.schema.json") as f:
+    resource1 = Resource.from_contents(json.load(f))
+with open(Path(__file__).parent.resolve() / 'additional_schemas' / "jsf-0.82.schema.json") as f:
+    resource2 = Resource.from_contents(json.load(f))
+registry = Registry().with_resources(
+    [
+        ("spdx.schema.json", resource1),
+        ("jsf-0.82.schema.json", resource2),
+    ],
+)
 
+args = parser.parse_args()
 with open(args.filename, encoding='utf-8') as f:
     try:
         parsed_file = json.load(f)

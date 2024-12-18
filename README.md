@@ -21,12 +21,11 @@ pip install -r requirements.txt
 ```
 prompt> python sbom-checker.py --help
 
-usage: sbom-checker.py [-h] [-e ERRORS] [json] filename
+usage: sbom-checker.py [-h] [-e ERRORS] [--check-vcs] filename
 
 проверка sbom-файлов
 
 positional arguments:
-  json                  файл-спецификация; по умолчанию ./schema.json
   filename              входной файл в формате CycloneDX JSON для проверки
 
 options:
@@ -34,7 +33,8 @@ options:
   -e ERRORS, --errors ERRORS
                         максимальное число ошибок для вывода; по умолчанию 10;
                         установите 0 для вывода всех ошибок
-  --check-vcs           проверка url типа vcs на git-репозиторий
+  --check-vcs           проверка url типа vcs на git-репозиторий (требуется
+                        доступ к Интернет)
 ```
 
 ### sbom-updater
