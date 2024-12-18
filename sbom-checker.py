@@ -31,7 +31,7 @@ if Path(args.json).samefile(Path('./schema.json')): # to resolve references to s
         ],
     )
 
-with open(args.filename) as f:
+with open(args.filename, encoding='utf-8') as f:
     try:
         parsed_file = json.load(f)
         cls = jsonschema.validators.validator_for(schema)

@@ -19,7 +19,7 @@ parser.add_argument('input', help='входной файл, содержащий
 parser.add_argument('output', help='выходной файл в формате odt, содержащий таблицу со всеми компонентами из входного файла')
 
 args = parser.parse_args()
-with open(args.input, 'r') as f:
+with open(args.input, 'r', encoding='utf-8') as f:
     input_data = json.load(f)
 
 doc = load('./template.odt')

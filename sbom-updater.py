@@ -149,7 +149,7 @@ parser.add_argument('-v', '--verbose', action='store_true', help='побробн
 args = parser.parse_args()
 if args.verbose:
     logging.basicConfig(format='%(message)s', level="INFO")
-with open(args.input, 'r') as f:
+with open(args.input, 'r', encoding='utf-8') as f:
     input_data = json.load(f)
 
 if args.fix_all:
