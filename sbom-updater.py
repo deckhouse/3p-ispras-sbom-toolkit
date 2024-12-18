@@ -302,5 +302,5 @@ if 'metadata' in input_data:
     input_data['metadata']['timestamp'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 if 'version' in input_data:
     input_data['version'] += 1
-with open(args.output, 'w') as f:
+with open(args.output, 'w', encoding='utf-8') as f:
     json.dump(input_data, f, indent=2, ensure_ascii=False)
