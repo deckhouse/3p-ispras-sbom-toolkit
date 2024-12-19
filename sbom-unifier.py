@@ -1,0 +1,41 @@
+# SPDX-FileCopyrightText: 2024 Ekaterina Shastun, ISPRAS
+# SPDX-License-Identifier: Apache-2.0
+
+import argparse
+import datetime
+import json
+
+parser = argparse.ArgumentParser(description='объединение sbom-файлов')
+parser.add_argument('--app-name', required=True, help='название продукта')
+parser.add_argument('--app-version', required=True, help='версия продукта')
+parser.add_argument('--manufacturer', required=True, help='название организации — изготовителя продукта')
+parser.add_argument('input', nargs='+', help='перечень входных файлов в формате CycloneDX JSON для объединения')
+parser.add_argument('output', help='выходной файл, в котором перечень компонентов является конкатенацией перечней компонентов из входных файлов; другие данные опускаются')
+
+args = parser.parse_args()
+all_components = []
+for fn in args.input:
+    with open(fn, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        all_components += data.get('components', [])
+
+output_data = {
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "version": 1,
+  "metadata": {
+    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+    "component": {
+      "type": "application",
+      "name": args.app_name,
+      "version": args.app_version,
+      "manufacturer": {
+        "name": args.manufacturer
+      }
+    }
+  },
+  "components": all_components
+}
+
+with open(args.output, 'w', encoding='utf-8') as f:
+    json.dump(output_data, f, indent=2, ensure_ascii=False)

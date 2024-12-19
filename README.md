@@ -94,6 +94,33 @@ options:
 }
 ```
 
+### sbom-unifier
+
+```
+prompt> python sbom-unifier.py --help
+
+usage: sbom-unifier.py [-h] --app-name APP_NAME --app-version APP_VERSION
+                       --manufacturer MANUFACTURER
+                       input [input ...] output
+
+объединение sbom-файлов
+
+positional arguments:
+  input                 перечень входных файлов в формате CycloneDX JSON для
+                        объединения
+  output                выходной файл, в котором перечень компонентов является
+                        конкатенацией перечней компонентов из входных файлов;
+                        другие данные опускаются
+
+options:
+  -h, --help            show this help message and exit
+  --app-name APP_NAME   название продукта
+  --app-version APP_VERSION
+                        версия продукта
+  --manufacturer MANUFACTURER
+                        название организации — изготовителя продукта
+```
+
 ### sbom-to-odt
 
 ```
