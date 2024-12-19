@@ -121,6 +121,25 @@ options:
                         название организации — изготовителя продукта
 ```
 
+### sbom-to-csv
+
+```
+prompt> python sbom-to-csv.py --help
+
+usage: sbom-to-csv.py [-h] input output
+
+генератор таблицы компонентов в формате csv
+
+positional arguments:
+  input       входной файл, содержащий перечень заимствованных компонентов, в
+              JSON формате
+  output      выходной файл в формате csv, содержащий таблицу со всеми
+              компонентами из входного файла
+
+options:
+  -h, --help  show this help message and exit
+```
+
 ### sbom-to-odt
 
 ```
