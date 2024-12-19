@@ -108,9 +108,8 @@ usage: sbom-unifier.py [-h] --app-name APP_NAME --app-version APP_VERSION
 positional arguments:
   input                 перечень входных файлов в формате CycloneDX JSON для
                         объединения
-  output                выходной файл, в котором перечень компонентов является
-                        конкатенацией перечней компонентов из входных файлов;
-                        другие данные опускаются
+  output                выходной файл, в котором продукты из входных файлов
+                        объединены в список компонентов
 
 options:
   -h, --help            show this help message and exit

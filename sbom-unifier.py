@@ -10,14 +10,32 @@ parser.add_argument('--app-name', required=True, help='название прод
 parser.add_argument('--app-version', required=True, help='версия продукта')
 parser.add_argument('--manufacturer', required=True, help='название организации — изготовителя продукта')
 parser.add_argument('input', nargs='+', help='перечень входных файлов в формате CycloneDX JSON для объединения')
-parser.add_argument('output', help='выходной файл, в котором перечень компонентов является конкатенацией перечней компонентов из входных файлов; другие данные опускаются')
+parser.add_argument('output', help='выходной файл, в котором продукты из входных файлов объединены в список компонентов')
+
+with open('schema.json') as f:
+    schema = json.load(f)
+    keys = set(schema['properties']).intersection(schema['$defs']['component']['properties'])
+    if 'version' in keys:
+        keys.remove('version')
+    if 'name' in keys:
+        keys.remove('name')
+    if 'type' in keys:
+        keys.remove('type')
 
 args = parser.parse_args()
 all_components = []
 for fn in args.input:
     with open(fn, 'r', encoding='utf-8') as f:
         data = json.load(f)
-        all_components += data.get('components', [])
+        new_data = {
+            'type': data['metadata']['component']['type'],
+            'name': data['metadata']['component']['name'],
+            'version': data['metadata']['component']['version'],
+        }
+        for key in keys:
+            if key in data:
+                new_data[key] = data[key]
+        all_components.append(new_data)
 
 output_data = {
   "bomFormat": "CycloneDX",
@@ -26,12 +44,12 @@ output_data = {
   "metadata": {
     "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     "component": {
-      "type": "application",
-      "name": args.app_name,
-      "version": args.app_version,
-      "manufacturer": {
-        "name": args.manufacturer
-      }
+        "type": "application",
+        "name": args.app_name,
+        "version": args.app_version,
+        "manufacturer": {
+            "name": args.manufacturer
+        }
     }
   },
   "components": all_components
