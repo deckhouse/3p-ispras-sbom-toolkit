@@ -54,15 +54,21 @@ with open(args.filename, encoding='utf-8') as f:
             _git = Git()
             stack = parsed_file.get('components', []).copy()
             not_repos = 0
+            repo_dict = dict()
             while stack:
                 component = stack.pop(0)
                 for url in component.get('externalReferences', []):
                     if url.get('type', '') == 'vcs':
-                        try:
-                            ls_res = _git.ls_remote(url.get('url', ''))
-                        except Exception:
+                        url = url.get('url', '')
+                        if not url in repo_dict:
+                            try:
+                                ls_res = _git.ls_remote(url)
+                                repo_dict[url] = True
+                            except Exception:
+                                repo_dict[url] = False
+                        if not repo_dict[url]:
                             not_repos += 1
-                            print(f"{url['url']} не является git-репозиторием")
+                            print(f"{url} не является git-репозиторием")
                             print('-'*50)
             if not_repos == 0 and count == 0:
                 print('файл корректный')

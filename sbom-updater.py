@@ -43,14 +43,17 @@ class RefFinder(object):
                 self._purl_to_url = json.load(f)
         except Exception:
             pass
+        self._repo_dict = dict()
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
 
     def is_repo(self, url):
-        try:
-            ls_res = self._git.ls_remote(url)
-            return True
-        except Exception:
-            return False
+        if not url in self._repo_dict:
+            try:
+                ls_res = self._git.ls_remote(url)
+                self._repo_dict[url] = True
+            except Exception:
+                self._repo_dict[url] = False
+        return self._repo_dict[url]
 
     def process_purl(self, purl):
         if purl in self._purl_to_url:
