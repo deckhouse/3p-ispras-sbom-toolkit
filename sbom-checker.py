@@ -49,6 +49,8 @@ with open(args.filename, encoding='utf-8') as f:
                 break
         if args.check_vcs:
             from git.cmd import Git
+            import os
+            os.environ['GIT_TERMINAL_PROMPT'] = '0'
             _git = Git()
             stack = parsed_file.get('components', []).copy()
             not_repos = 0

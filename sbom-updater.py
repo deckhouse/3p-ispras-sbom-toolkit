@@ -6,6 +6,7 @@ import datetime
 import git
 import json
 import logging
+import os
 from requests import Session, adapters
 import xml.etree.ElementTree as ET
 
@@ -42,6 +43,7 @@ class RefFinder(object):
                 self._purl_to_url = json.load(f)
         except Exception:
             pass
+        os.environ['GIT_TERMINAL_PROMPT'] = '0'
 
     def is_repo(self, url):
         try:
