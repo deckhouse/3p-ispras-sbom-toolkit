@@ -862,9 +862,12 @@
             "type",
             "name",
             "version",
-            "externalReferences",
             "properties"
           ]
+        },
+        {
+          "if": {"not": {"required": ["components"], "properties": {"components": {"type": "array", "minItems": 1}}}},
+          "then": {"required": ["externalReferences"]}
         },
         {"$ref": "#/$defs/component"},
         {
