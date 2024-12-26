@@ -12,6 +12,9 @@ import urllib.parse
 def parse_repo_url(url):
     parsed_url = urllib.parse.urlparse(url)
     path = parsed_url.path.strip('/')
+    query = urllib.parse.parse_qs(parsed_url.query)
+    if 'commit' in query:
+        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['commit'][0]
     if parsed_url.netloc == 'src.libcode.org':
         r = r"(.+)\/(src)\/(.+)"
     elif 'gitlab' in parsed_url.netloc:
