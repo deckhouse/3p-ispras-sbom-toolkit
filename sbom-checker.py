@@ -5,7 +5,23 @@ import argparse
 import json
 import jsonschema
 from pathlib import Path
+import re
 from referencing import Registry, Resource
+import urllib.parse
+
+def parse_repo_url(url):
+    parsed_url = urllib.parse.urlparse(url)
+    path = parsed_url.path.strip('/')
+    if parsed_url.netloc == 'src.libcode.org':
+        r = r"(.+)\/(src)\/(.+)"
+    elif 'gitlab' in parsed_url.netloc:
+        r = r"(.+)\/-\/(commit|tags|tree)\/(.+)"
+    else:
+        r = r"(.+)\/(commit|blob|tree|releases\/tag)\/(.+)"
+    m1 = re.match(r, path)
+    if m1:
+        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + m1.group(1)), m1.group(3)
+    return None
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
@@ -43,7 +59,7 @@ with open(args.filename, encoding='utf-8') as f:
         limit = args.errors
         for err in errors:
             count += 1
-            print(err)
+            print("ERROR: " + str(err))
             print('-'*50)
             if limit and count == limit:
                 break
@@ -54,12 +70,16 @@ with open(args.filename, encoding='utf-8') as f:
             _git = Git()
             stack = parsed_file.get('components', []).copy()
             not_repos = 0
-            repo_dict = dict()
+            repo_dict = {'': False}
             while stack:
                 component = stack.pop(0)
-                for url in component.get('externalReferences', []):
-                    if url.get('type', '') == 'vcs':
-                        url = url.get('url', '')
+                stack += component.get('components', [])
+                for ref in component.get('externalReferences', []):
+                    if ref.get('type', '') == 'vcs':
+                        url = ref.get('url', '')
+                        res = parse_repo_url(url)
+                        if res:
+                            url = res[0]
                         if not url in repo_dict:
                             try:
                                 ls_res = _git.ls_remote(url)
@@ -68,7 +88,7 @@ with open(args.filename, encoding='utf-8') as f:
                                 repo_dict[url] = False
                         if not repo_dict[url]:
                             not_repos += 1
-                            print(f"{url} не является git-репозиторием")
+                            print(f"WARNING: {ref.get('url', '')} не является git-репозиторием и не подходит под шаблон")
                             print('-'*50)
             if not_repos == 0 and count == 0:
                 print('файл корректный')
