@@ -79,22 +79,24 @@ with open(args.filename, encoding='utf-8') as f:
             while stack:
                 component = stack.pop(0)
                 stack += component.get('components', [])
-                for ref in component.get('externalReferences', []):
-                    if ref.get('type', '') == 'vcs':
-                        url = ref.get('url', '')
-                        res = parse_repo_url(url)
-                        if res:
-                            url = res[0]
-                        if not url in repo_dict:
-                            try:
-                                ls_res = _git.ls_remote(url)
-                                repo_dict[url] = True
-                            except Exception:
-                                repo_dict[url] = False
-                        if not repo_dict[url]:
-                            not_repos += 1
-                            print(f"WARNING: {ref.get('url', '')} не является git-репозиторием и не подходит под шаблон")
-                            print('-'*50)
+                refs = component.get('externalReferences', [])
+                if type(refs) == list:
+                    for ref in refs:
+                        if type(ref) == dict and ref.get('type', '') == 'vcs':
+                            url = ref.get('url', '')
+                            res = parse_repo_url(url)
+                            if res:
+                                url = res[0]
+                            if not url in repo_dict:
+                                try:
+                                    ls_res = _git.ls_remote(url)
+                                    repo_dict[url] = True
+                                except Exception:
+                                    repo_dict[url] = False
+                            if not repo_dict[url]:
+                                not_repos += 1
+                                print(f"WARNING: {ref.get('url', '')} не является git-репозиторием и не подходит под шаблон")
+                                print('-'*50)
             if not_repos == 0 and count == 0:
                 print('файл корректный')
         elif count == 0:
