@@ -4,6 +4,7 @@
 import argparse
 import json
 import jsonschema
+import logging
 from pathlib import Path
 import re
 from referencing import Registry, Resource
@@ -33,6 +34,7 @@ parser.add_argument('filename', help='входной файл в формате 
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git-репозиторий (требуется доступ к Интернет)')
+parser.add_argument('-v', '--verbose', action='store_true', help='побробный вывод')
 
 with open('./schema.json') as f:
     schema = json.load(f)
@@ -50,6 +52,8 @@ registry = Registry().with_resources(
 )
 
 args = parser.parse_args()
+if args.verbose:
+    logging.basicConfig(format='%(message)s', level="INFO")
 with open(args.filename, encoding='utf-8') as f:
     try:
         parsed_file = json.load(f)
@@ -91,7 +95,8 @@ with open(args.filename, encoding='utf-8') as f:
                                 try:
                                     ls_res = _git.ls_remote(url)
                                     repo_dict[url] = True
-                                except Exception:
+                                except Exception as e:
+                                    logging.info(e)
                                     repo_dict[url] = False
                             if not repo_dict[url]:
                                 not_repos += 1
