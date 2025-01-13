@@ -19,6 +19,14 @@ def validate_no_duplicate_keys(list_of_pairs):
         raise ValueError(f'Duplicate key(s) in file: {duplicate_keys}')
     return dict(list_of_pairs)
 
+pattern_dict = {
+    'src.libcode.org': ((), ('src', 'commit')),
+    'codeberg.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',)),
+    'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',)),
+    'bitbucket.org': ((), ('commits', 'src', 'branch')),
+    'sourceforge.net': ((), ('ci',)),
+}
+
 def parse_repo_url(url):
     parsed_url = urllib.parse.urlparse(url)
     path = parsed_url.path.strip('/')
@@ -27,15 +35,36 @@ def parse_repo_url(url):
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['commit'][0]
     if 'tag' in query:
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['tag'][0]
-    if parsed_url.netloc == 'src.libcode.org':
-        r = r"(.+)\/(src)\/(.+)"
-    elif 'gitlab' in parsed_url.netloc:
-        r = r"(.+)\/-\/(commit|tags|tree)\/(.+)"
+    path_pair_list = []
+    path_split = path.split('/')
+    for idx in range(len(path_split) - 1):
+        path_pair_list.append((path_split[idx], path_split[idx+1]))
+    idx = -1
+    flag = 0
+    if parsed_url.netloc in pattern_dict:
+        for s in pattern_dict[parsed_url.netloc][0]:
+            if s in path_pair_list:
+                idx = path_pair_list.index(s)
+                flag = 1
+                break
+        else:
+            for s in pattern_dict[parsed_url.netloc][1]:
+                if s in path_split:
+                    idx = path_split.index(s)
+                    break
     else:
-        r = r"(.+)\/(commit|blob|tree|releases\/tag)\/(.+)"
-    m1 = re.match(r, path)
-    if m1:
-        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + m1.group(1)), m1.group(3)
+        for s in [('-', 'commit'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('releases', 'tag')]:
+            if s in path_pair_list:
+                idx = path_pair_list.index(s)
+                flag = 1
+                break
+        else:
+            for s in ['commit', 'blob', 'tree']:
+                if s in path_split:
+                    idx = path_split.index(s)
+                    break
+    if idx > 0:
+        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx])), '/'.join(path_split[idx+1+flag:])
     return None
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
