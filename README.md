@@ -35,6 +35,7 @@ options:
                         установите 0 для вывода всех ошибок
   --check-vcs           проверка url типа vcs на git-репозиторий (требуется
                         доступ к Интернет)
+  -v, --verbose         побробный вывод
 ```
 
 ### sbom-updater
@@ -107,7 +108,8 @@ usage: sbom-unifier.py [-h] --app-name APP_NAME --app-version APP_VERSION
 
 positional arguments:
   input                 перечень входных файлов в формате CycloneDX JSON для
-                        объединения
+                        объединения; рекомендуется использовать файлы,
+                        проверенные скриптом sbom-checker.py
   output                выходной файл, в котором продукты из входных файлов
                         объединены в список компонентов
 
