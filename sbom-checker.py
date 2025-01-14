@@ -7,8 +7,8 @@ import json
 import jsonschema
 import logging
 from pathlib import Path
-import re
 from referencing import Registry, Resource
+import subprocess
 import urllib.parse
 
 def validate_no_duplicate_keys(list_of_pairs):
@@ -71,7 +71,7 @@ parser = argparse.ArgumentParser(description='проверка sbom-файлов
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
-parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git-репозиторий (требуется доступ к Интернет)')
+parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git/svn/hg-репозиторий (требуется доступ к Интернет и наличие пакетов git, subversion и mercurial)')
 parser.add_argument('-v', '--verbose', action='store_true', help='побробный вывод')
 
 with open('./schema.json') as f:
@@ -131,16 +131,41 @@ with open(args.filename, encoding='utf-8') as f:
                             res = parse_repo_url(url)
                             if res:
                                 url = res[0]
+                            ex_str = []
                             if not url in repo_dict:
                                 try:
                                     ls_res = _git.ls_remote(url)
                                     repo_dict[url] = True
                                 except Exception as e:
-                                    logging.info(e)
                                     repo_dict[url] = False
+                                    ex_str.append(f'ERROR/GIT: {e}')
+                                if not repo_dict[url]:
+                                    try:
+                                        res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True)
+                                        if res1.stderr:
+                                            ex_str.append(f'ERROR/SVN: {res1.stderr}')
+                                            repo_dict[url] = False
+                                        else:
+                                            repo_dict[url] = True
+                                    except Exception as e:
+                                        ex_str.append(f'ERROR/SVN: {e}')
+                                        repo_dict[url] = False
+                                if not repo_dict[url]:
+                                    try:
+                                        res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True)
+                                        if res2.stderr:
+                                            ex_str.append(f'ERROR/HG: {res2.stderr}')
+                                            repo_dict[url] = False
+                                        else:
+                                            repo_dict[url] = True
+                                    except Exception as e:
+                                        ex_str.append(f'ERROR/HG: {e}')
+                                        repo_dict[url] = False
+                            if not repo_dict[url]:
+                                logging.info('\n'.join(ex_str))
                             if not repo_dict[url]:
                                 not_repos += 1
-                                print(f"WARNING: {ref.get('url', '')} не является git-репозиторием и не подходит под шаблон")
+                                print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg-репозиторием")
                                 print('-'*50)
             if not_repos == 0 and count == 0:
                 print('файл корректный')
