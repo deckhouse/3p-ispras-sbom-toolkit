@@ -5,6 +5,8 @@ import argparse
 import datetime
 import json
 
+from sbom_opener import opener
+
 def get_prop(arr, name):
     for elem in arr:
         if elem.get('name', '') == name:
@@ -43,25 +45,24 @@ with open('schema.json') as f:
 args = parser.parse_args()
 all_components = []
 for fn in args.input:
-    with open(fn, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        new_data = data['metadata']['component'].copy()
-        for key in keys:
-            if key in data:
-                new_data[key] = data[key]
-        if not 'properties' in new_data:
-            new_data['properties'] = []
-        if not get_prop(new_data.get('properties', []), 'GOST:attack_surface'):
-            new_data['properties'].append({
-                "name": 'GOST:attack_surface',
-                "value": eval_prop(data.get('components', []), 'GOST:attack_surface')
-            })
-        if not get_prop(new_data.get('properties', []), 'GOST:security_function'):
-            new_data['properties'].append({
-                "name": 'GOST:security_function',
-                "value": eval_prop(data.get('components', []), 'GOST:security_function')
-            })
-        all_components.append(new_data)
+    data, encoding = opener(fn)
+    new_data = data['metadata']['component'].copy()
+    for key in keys:
+        if key in data:
+            new_data[key] = data[key]
+    if not 'properties' in new_data:
+        new_data['properties'] = []
+    if not get_prop(new_data.get('properties', []), 'GOST:attack_surface'):
+        new_data['properties'].append({
+            "name": 'GOST:attack_surface',
+            "value": eval_prop(data.get('components', []), 'GOST:attack_surface')
+        })
+    if not get_prop(new_data.get('properties', []), 'GOST:security_function'):
+        new_data['properties'].append({
+            "name": 'GOST:security_function',
+            "value": eval_prop(data.get('components', []), 'GOST:security_function')
+        })
+    all_components.append(new_data)
 
 output_data = {
   "bomFormat": "CycloneDX",
@@ -81,5 +82,5 @@ output_data = {
   "components": all_components
 }
 
-with open(args.output, 'w', encoding='utf-8') as f:
+with open(args.output, 'w', encoding=encoding) as f:
     json.dump(output_data, f, indent=2, ensure_ascii=False)

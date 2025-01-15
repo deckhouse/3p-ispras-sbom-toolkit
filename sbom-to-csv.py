@@ -1,8 +1,9 @@
 # SPDX-FileCopyrightText: 2024 Artem Irkhin
 # SPDX-License-Identifier: Apache-2.0
 
-import json, csv, argparse
+import csv, argparse
 
+from sbom_opener import opener
 
 def get_prop(arr, name):
     for elem in arr:
@@ -16,8 +17,7 @@ parser.add_argument('input', help='входной файл, содержащий
 parser.add_argument('output', help='выходной файл в формате csv, содержащий таблицу со всеми компонентами из входного файла')
 args = parser.parse_args()
 
-with open(args.input, 'r', encoding='utf-8') as f:
-    bom_json = json.load(f)
+bom_json, encoding = opener(args.input)
 
 with open(args.output, 'w', newline="") as file:
     writer = csv.writer(file)

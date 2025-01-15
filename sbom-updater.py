@@ -10,6 +10,8 @@ import os
 from requests import Session, adapters
 import xml.etree.ElementTree as ET
 
+from sbom_opener import opener
+
 DEFAULT_VALUE = "TODO"
 
 def has_prop(arr, name):
@@ -154,8 +156,7 @@ parser.add_argument('-v', '--verbose', action='store_true', help='побробн
 args = parser.parse_args()
 if args.verbose:
     logging.basicConfig(format='%(message)s', level="INFO")
-with open(args.input, 'r', encoding='utf-8') as f:
-    input_data = json.load(f)
+input_data, encoding = opener(args.input)
 
 if args.fix_all:
     if input_data['specVersion'] != '1.6':
@@ -307,5 +308,5 @@ if 'metadata' in input_data:
     input_data['metadata']['timestamp'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
 if 'version' in input_data:
     input_data['version'] += 1
-with open(args.output, 'w', encoding='utf-8') as f:
+with open(args.output, 'w', encoding=encoding) as f:
     json.dump(input_data, f, indent=2, ensure_ascii=False)

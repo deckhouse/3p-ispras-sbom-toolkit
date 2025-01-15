@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-from collections import Counter
 import json
 import jsonschema
 import logging
@@ -11,13 +10,7 @@ from referencing import Registry, Resource
 import subprocess
 import urllib.parse
 
-def validate_no_duplicate_keys(list_of_pairs):
-    key_count = Counter(k for k,v in list_of_pairs)
-    duplicate_keys = ', '.join(k for k,v in key_count.items() if v>1)
-
-    if len(duplicate_keys) != 0:
-        raise ValueError(f'Duplicate key(s) in file: {duplicate_keys}')
-    return dict(list_of_pairs)
+from sbom_opener import opener
 
 pattern_dict = {
     'src.libcode.org': ((), ('src', 'commit')),
@@ -92,85 +85,87 @@ registry = Registry().with_resources(
 args = parser.parse_args()
 if args.verbose:
     logging.basicConfig(format='%(message)s', level="INFO")
-with open(args.filename, encoding='utf-8') as f: # duplicate keys detection
-    json.load(f, object_pairs_hook=validate_no_duplicate_keys)
-with open(args.filename, encoding='utf-8') as f:
-    try:
-        parsed_file = json.load(f)
-        cls = jsonschema.validators.validator_for(schema)
-        cls.check_schema(schema)
-        if registry:
-            validator = cls(schema, format_checker=cls.FORMAT_CHECKER, registry=registry)
-        else:
-            validator = cls(schema, format_checker=cls.FORMAT_CHECKER)
-        errors = validator.iter_errors(parsed_file)
-        count = 0
-        limit = args.errors
-        for err in errors:
-            count += 1
-            print("ERROR: " + str(err))
-            print('-'*50)
-            if limit and count == limit:
-                break
-        if args.check_vcs:
-            from git.cmd import Git
-            import os
-            os.environ['GIT_TERMINAL_PROMPT'] = '0'
-            _git = Git()
-            stack = parsed_file.get('components', []).copy()
-            not_repos = 0
-            repo_dict = {'': False}
-            while stack:
-                component = stack.pop(0)
-                stack += component.get('components', [])
-                refs = component.get('externalReferences', [])
-                if type(refs) == list:
-                    for ref in refs:
-                        if type(ref) == dict and ref.get('type', '') == 'vcs':
-                            url = ref.get('url', '')
-                            res = parse_repo_url(url)
-                            if res:
-                                url = res[0]
-                            ex_str = []
-                            if not url in repo_dict:
+
+# encoding and duplicate keys detection
+data, encoding = opener(args.filename, pairs=True)
+
+with open(args.filename, encoding=encoding) as f:
+    parsed_file = json.load(f)
+try:
+    cls = jsonschema.validators.validator_for(schema)
+    cls.check_schema(schema)
+    if registry:
+        validator = cls(schema, format_checker=cls.FORMAT_CHECKER, registry=registry)
+    else:
+        validator = cls(schema, format_checker=cls.FORMAT_CHECKER)
+    errors = validator.iter_errors(parsed_file)
+    count = 0
+    limit = args.errors
+    for err in errors:
+        count += 1
+        print("ERROR: " + str(err))
+        print('-'*50)
+        if limit and count == limit:
+            break
+    if args.check_vcs:
+        from git.cmd import Git
+        import os
+        os.environ['GIT_TERMINAL_PROMPT'] = '0'
+        _git = Git()
+        stack = parsed_file.get('components', []).copy()
+        not_repos = 0
+        repo_dict = {'': False}
+        while stack:
+            component = stack.pop(0)
+            stack += component.get('components', [])
+            refs = component.get('externalReferences', [])
+            if type(refs) == list:
+                for ref in refs:
+                    if type(ref) == dict and ref.get('type', '') == 'vcs':
+                        url = ref.get('url', '')
+                        res = parse_repo_url(url)
+                        if res:
+                            url = res[0]
+                        ex_str = []
+                        if not url in repo_dict:
+                            try:
+                                ls_res = _git.ls_remote(url)
+                                repo_dict[url] = True
+                            except Exception as e:
+                                repo_dict[url] = False
+                                ex_str.append(f'ERROR/GIT: {e}')
+                            if not repo_dict[url]:
                                 try:
-                                    ls_res = _git.ls_remote(url)
-                                    repo_dict[url] = True
+                                    res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True)
+                                    if res1.stderr:
+                                        ex_str.append(f'ERROR/SVN: {res1.stderr}')
+                                        repo_dict[url] = False
+                                    else:
+                                        repo_dict[url] = True
                                 except Exception as e:
+                                    ex_str.append(f'ERROR/SVN: {e}')
                                     repo_dict[url] = False
-                                    ex_str.append(f'ERROR/GIT: {e}')
-                                if not repo_dict[url]:
-                                    try:
-                                        res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True)
-                                        if res1.stderr:
-                                            ex_str.append(f'ERROR/SVN: {res1.stderr}')
-                                            repo_dict[url] = False
-                                        else:
-                                            repo_dict[url] = True
-                                    except Exception as e:
-                                        ex_str.append(f'ERROR/SVN: {e}')
-                                        repo_dict[url] = False
-                                if not repo_dict[url]:
-                                    try:
-                                        res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True)
-                                        if res2.stderr:
-                                            ex_str.append(f'ERROR/HG: {res2.stderr}')
-                                            repo_dict[url] = False
-                                        else:
-                                            repo_dict[url] = True
-                                    except Exception as e:
-                                        ex_str.append(f'ERROR/HG: {e}')
-                                        repo_dict[url] = False
                             if not repo_dict[url]:
-                                logging.info('\n'.join(ex_str))
-                            if not repo_dict[url]:
-                                not_repos += 1
-                                print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg-репозиторием")
-                                print('-'*50)
-            if not_repos == 0 and count == 0:
-                print('файл корректный')
-        elif count == 0:
+                                try:
+                                    res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True)
+                                    if res2.stderr:
+                                        ex_str.append(f'ERROR/HG: {res2.stderr}')
+                                        repo_dict[url] = False
+                                    else:
+                                        repo_dict[url] = True
+                                except Exception as e:
+                                    ex_str.append(f'ERROR/HG: {e}')
+                                    repo_dict[url] = False
+                        if not repo_dict[url]:
+                            logging.info('\n'.join(ex_str))
+                        if not repo_dict[url]:
+                            not_repos += 1
+                            print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg-репозиторием")
+                            print('-'*50)
+        if not_repos == 0 and count == 0:
             print('файл корректный')
-    except jsonschema.exceptions.SchemaError as se:
-        print('ошибка в файле-спецификации:')
-        print(se)
+    elif count == 0:
+        print('файл корректный')
+except jsonschema.exceptions.SchemaError as se:
+    print('ошибка в файле-спецификации:')
+    print(se)

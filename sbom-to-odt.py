@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
-import json
-
 from odf.opendocument import load
 from odf.table import Table, TableRow, TableCell
 from odf.text import P
+
+from sbom_opener import opener
 
 def get_prop(arr, name):
     for elem in arr:
@@ -19,8 +19,7 @@ parser.add_argument('input', help='входной файл, содержащий
 parser.add_argument('output', help='выходной файл в формате odt, содержащий таблицу со всеми компонентами из входного файла')
 
 args = parser.parse_args()
-with open(args.input, 'r', encoding='utf-8') as f:
-    input_data = json.load(f)
+input_data, encoding = opener(args.input)
 
 doc = load('./template.odt')
 stack = input_data.get('components', []).copy()
