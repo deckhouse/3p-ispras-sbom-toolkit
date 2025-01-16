@@ -18,6 +18,7 @@ pattern_dict = {
     'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',)),
     'bitbucket.org': ((), ('commits', 'src', 'branch')),
     'sourceforge.net': ((), ('ci',)),
+    'hg.code.sf.net': ((), ('file', 'rev', 'shortlog')),
 }
 
 def parse_repo_url(url):
