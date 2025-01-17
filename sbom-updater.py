@@ -10,7 +10,7 @@ import os
 from requests import Session, adapters
 import xml.etree.ElementTree as ET
 
-from sbom_opener import opener
+from sbom_utils import opener, check_repo
 
 DEFAULT_VALUE = "TODO"
 
@@ -45,17 +45,23 @@ class RefFinder(object):
                 self._purl_to_url = json.load(f)
         except Exception:
             pass
-        self._repo_dict = dict()
+        if os.path.isfile('./check_vcs.json'):
+            with open('./check_vcs.json') as f:
+                self._repo_dict = json.load(f)
+        else:
+            self._repo_dict = dict()
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
 
     def is_repo(self, url):
         if not url in self._repo_dict:
-            try:
-                ls_res = self._git.ls_remote(url)
-                self._repo_dict[url] = True
-            except Exception:
-                self._repo_dict[url] = False
+            self._repo_dict[url], ex_str = check_repo(url, self._git)
+            if not self._repo_dict[url]:
+                logging.info(ex_str)
         return self._repo_dict[url]
+
+    def dump_repos(self):
+        with open('./check_vcs.json', 'w') as f:
+            json.dump({k:v for k,v in self._repo_dict.items() if v}, f, indent=2)
 
     def process_purl(self, purl):
         if purl in self._purl_to_url:
@@ -234,6 +240,7 @@ if args.ref or args.fix_all:
             website_ref['type'] = 'vcs'
             logging.info(f"смена типа с 'website' на 'vcs' для {website_ref['url']}")
             logging.info('-'*50)
+    ref_finder.dump_repos()
 
 if args.update:
     with open(args.update) as f:

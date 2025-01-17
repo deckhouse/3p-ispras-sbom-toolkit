@@ -8,58 +8,8 @@ import logging
 from pathlib import Path
 from referencing import Registry, Resource
 import subprocess
-import urllib.parse
 
-from sbom_opener import opener
-
-pattern_dict = {
-    'src.libcode.org': ((), ('src', 'commit')),
-    'codeberg.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',)),
-    'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',)),
-    'bitbucket.org': ((), ('commits', 'src', 'branch')),
-    'sourceforge.net': ((), ('ci',)),
-    'hg.code.sf.net': ((), ('file', 'rev', 'shortlog')),
-}
-
-def parse_repo_url(url):
-    parsed_url = urllib.parse.urlparse(url)
-    path = parsed_url.path.strip('/')
-    query = urllib.parse.parse_qs(parsed_url.query)
-    if 'commit' in query:
-        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['commit'][0]
-    if 'tag' in query:
-        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['tag'][0]
-    path_pair_list = []
-    path_split = path.split('/')
-    for idx in range(len(path_split) - 1):
-        path_pair_list.append((path_split[idx], path_split[idx+1]))
-    idx = -1
-    flag = 0
-    if parsed_url.netloc in pattern_dict:
-        for s in pattern_dict[parsed_url.netloc][0]:
-            if s in path_pair_list:
-                idx = path_pair_list.index(s)
-                flag = 1
-                break
-        else:
-            for s in pattern_dict[parsed_url.netloc][1]:
-                if s in path_split:
-                    idx = path_split.index(s)
-                    break
-    else:
-        for s in [('-', 'commit'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('releases', 'tag')]:
-            if s in path_pair_list:
-                idx = path_pair_list.index(s)
-                flag = 1
-                break
-        else:
-            for s in ['commit', 'blob', 'tree']:
-                if s in path_split:
-                    idx = path_split.index(s)
-                    break
-    if idx > 0:
-        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx])), '/'.join(path_split[idx+1+flag:])
-    return None
+from sbom_utils import check_repo, opener, parse_repo_url
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
@@ -115,7 +65,11 @@ try:
         _git = Git()
         stack = parsed_file.get('components', []).copy()
         not_repos = 0
-        repo_dict = {'': False}
+        if os.path.isfile('./check_vcs.json'):
+            with open('./check_vcs.json') as f:
+                repo_dict = json.load(f)
+        else:
+            repo_dict = dict()
         while stack:
             component = stack.pop(0)
             stack += component.get('components', [])
@@ -127,42 +81,16 @@ try:
                         res = parse_repo_url(url)
                         if res:
                             url = res[0]
-                        ex_str = []
+                        ex_str = ''
                         if not url in repo_dict:
-                            try:
-                                ls_res = _git.ls_remote(url)
-                                repo_dict[url] = True
-                            except Exception as e:
-                                repo_dict[url] = False
-                                ex_str.append(f'ERROR/GIT: {e}')
+                            repo_dict[url], ex_str = check_repo(url, _git)
                             if not repo_dict[url]:
-                                try:
-                                    res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True)
-                                    if res1.stderr:
-                                        ex_str.append(f'ERROR/SVN: {res1.stderr}')
-                                        repo_dict[url] = False
-                                    else:
-                                        repo_dict[url] = True
-                                except Exception as e:
-                                    ex_str.append(f'ERROR/SVN: {e}')
-                                    repo_dict[url] = False
-                            if not repo_dict[url]:
-                                try:
-                                    res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True)
-                                    if res2.stderr:
-                                        ex_str.append(f'ERROR/HG: {res2.stderr}')
-                                        repo_dict[url] = False
-                                    else:
-                                        repo_dict[url] = True
-                                except Exception as e:
-                                    ex_str.append(f'ERROR/HG: {e}')
-                                    repo_dict[url] = False
-                        if not repo_dict[url]:
-                            logging.info('\n'.join(ex_str))
-                        if not repo_dict[url]:
-                            not_repos += 1
-                            print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg-репозиторием")
-                            print('-'*50)
+                                logging.info(ex_str)
+                                not_repos += 1
+                                print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg-репозиторием")
+                                print('-'*50)
+        with open('./check_vcs.json', 'w') as f:
+            json.dump({k:v for k,v in repo_dict.items() if v}, f, indent=2)
         if not_repos == 0 and count == 0:
             print('файл корректный')
     elif count == 0:

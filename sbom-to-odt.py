@@ -6,7 +6,7 @@ from odf.opendocument import load
 from odf.table import Table, TableRow, TableCell
 from odf.text import P
 
-from sbom_opener import opener
+from sbom_utils import opener
 
 def get_prop(arr, name):
     for elem in arr:
