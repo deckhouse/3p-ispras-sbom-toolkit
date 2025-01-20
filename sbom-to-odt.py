@@ -14,6 +14,12 @@ def get_prop(arr, name):
             return elem.get('value', '')
     return ''
 
+def get_ext_ref(er_list):
+    for er in er_list:
+        if er['type'] in ['vcs', 'source-distribution']:
+            return er['url']
+    return ''
+
 parser = argparse.ArgumentParser(description='генератор таблицы компонентов в формате odt')
 parser.add_argument('input', help='входной файл, содержащий перечень заимствованных компонентов, в JSON формате')
 parser.add_argument('output', help='выходной файл в формате odt, содержащий таблицу со всеми компонентами из входного файла')
@@ -35,7 +41,7 @@ for item in doc.getElementsByType(Table):
                    get_prop(comp.get('properties', []), 'source_langs'),
                    get_prop(comp.get('properties', []), 'GOST:attack_surface'),
                    get_prop(comp.get('properties', []), 'GOST:security_function'),
-                   comp.get('externalReferences', [{'url':''}])[0].get('url', ''))
+                   get_ext_ref(comp.get('externalReferences', [])))
         if element in added_elements:
             continue
         added_elements.add(element)
