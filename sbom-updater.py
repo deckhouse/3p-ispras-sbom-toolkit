@@ -10,7 +10,7 @@ import os
 from requests import Session, adapters
 import xml.etree.ElementTree as ET
 
-from sbom_utils import opener, check_repo
+from sbom_utils import opener, check_repo, load_cache, dump_cache
 
 DEFAULT_VALUE = "TODO"
 
@@ -45,11 +45,7 @@ class RefFinder(object):
                 self._purl_to_url = json.load(f)
         except Exception:
             pass
-        if os.path.isfile('./check_vcs.json'):
-            with open('./check_vcs.json') as f:
-                self._repo_dict = json.load(f)
-        else:
-            self._repo_dict = dict()
+        self._repo_dict = load_cache()
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
 
     def is_repo(self, url):
@@ -60,8 +56,7 @@ class RefFinder(object):
         return self._repo_dict[url]
 
     def dump_repos(self):
-        with open('./check_vcs.json', 'w') as f:
-            json.dump({k:v for k,v in self._repo_dict.items() if v}, f, indent=2)
+        dump_cache({k:v for k,v in self._repo_dict.items() if v})
 
     def process_purl(self, purl):
         if purl in self._purl_to_url:

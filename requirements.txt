@@ -4,3 +4,4 @@ rfc3987
 odfpy
 requests
 gitpython
+platformdirs

@@ -7,9 +7,8 @@ import jsonschema
 import logging
 from pathlib import Path
 from referencing import Registry, Resource
-import subprocess
 
-from sbom_utils import check_repo, opener, parse_repo_url
+from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
@@ -65,11 +64,7 @@ try:
         _git = Git()
         stack = parsed_file.get('components', []).copy()
         not_repos = 0
-        if os.path.isfile('./check_vcs.json'):
-            with open('./check_vcs.json') as f:
-                repo_dict = json.load(f)
-        else:
-            repo_dict = dict()
+        repo_dict = load_cache()
         while stack:
             component = stack.pop(0)
             stack += component.get('components', [])
@@ -89,8 +84,7 @@ try:
                                 not_repos += 1
                                 print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg-репозиторием")
                                 print('-'*50)
-        with open('./check_vcs.json', 'w') as f:
-            json.dump({k:v for k,v in repo_dict.items() if v}, f, indent=2)
+        dump_cache({k:v for k,v in repo_dict.items() if v})
         if not_repos == 0 and count == 0:
             print('файл корректный')
     elif count == 0:

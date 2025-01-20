@@ -1,5 +1,10 @@
+# SPDX-FileCopyrightText: 2024 Ekaterina Shastun, ISPRAS
+# SPDX-License-Identifier: Apache-2.0
+
 from collections import Counter
 import json
+import os
+import platformdirs
 import subprocess
 import urllib.parse
 
@@ -107,3 +112,15 @@ def opener(filename, pairs=False):
             data = json.load(f, object_pairs_hook=(validate_no_duplicate_keys if pairs else None))
         encoding = 'utf-8-sig'
     return data, encoding
+
+def load_cache():
+    cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
+    if os.path.isfile(cache_file):
+        with open(cache_file) as f:
+            return json.load(f)
+    return dict()
+
+def dump_cache(data):
+    cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
+    with open(cache_file, 'w') as f:
+        json.dump(data, f)
