@@ -43,7 +43,7 @@ def parse_repo_url(url):
                     idx = path_split.index(s)
                     break
     else:
-        for s in [('-', 'commit'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('releases', 'tag')]:
+        for s in [('-', 'commit'), ('-', 'commits'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('releases', 'tag')]:
             if s in path_pair_list:
                 idx = path_pair_list.index(s)
                 flag = 1
