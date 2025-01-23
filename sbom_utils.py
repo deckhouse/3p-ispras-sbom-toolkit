@@ -9,11 +9,12 @@ import subprocess
 import urllib.parse
 
 pattern_dict = {
-    'src.libcode.org': ((), ('src', 'commit'), 2),
-    'codeberg.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
-    'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
     'bitbucket.org': ((), ('commits', 'src', 'branch'), 2),
+    'codeberg.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
+    'github.com': ((('releases', 'tag'),), ('commit', 'blob', 'tree'), 2),
     'hg.code.sf.net': ((), ('file', 'rev', 'shortlog'), 3),
+    'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
+    'src.libcode.org': ((), ('src', 'commit'), 2),
 }
 
 def parse_repo_url(url):
