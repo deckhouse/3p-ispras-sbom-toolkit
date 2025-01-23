@@ -74,7 +74,7 @@ try:
                     if type(ref) == dict and ref.get('type', '') == 'vcs':
                         url = ref.get('url', '')
                         res = parse_repo_url(url)
-                        if res:
+                        if res and res[1]:
                             url = res[0]
                         ex_str = ''
                         if not url in repo_dict:
