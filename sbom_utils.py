@@ -54,18 +54,22 @@ def parse_repo_url(url):
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx])), '/'.join(path_split[idx+1+flag:])
     return None
 
-def check_repo(url, git_instance):
+def check_repo(url):
     result = False
     exc_list = []
     try:
-        ls_res = git_instance.ls_remote(url)
-        result = True
+        res0 = subprocess.run(f'git ls-remote {url}', shell=True, capture_output=True, text=True, timeout=60)
+        if res0.stderr:
+            exc_list.append(f'ERROR/GIT: {res0.stderr}')
+            result = False
+        else:
+            result = True
     except Exception as e:
-        result = False
         exc_list.append(f'ERROR/GIT: {e}')
+        result = False
     if not result:
         try:
-            res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True)
+            res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True, timeout=60)
             if res1.stderr:
                 exc_list.append(f'ERROR/SVN: {res1.stderr}')
                 result = False
@@ -76,7 +80,7 @@ def check_repo(url, git_instance):
             result = False
     if not result:
         try:
-            res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True)
+            res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True, timeout=60)
             if res2.stderr:
                 exc_list.append(f'ERROR/HG: {res2.stderr}')
                 result = False
@@ -87,7 +91,7 @@ def check_repo(url, git_instance):
             result = False
     if not result:
         try:
-            res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "<footer>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True)
+            res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "<footer>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True, timeout=60)
             if res3.stdout.startswith('<footer>'):
                 result = True
             elif res3.stderr:

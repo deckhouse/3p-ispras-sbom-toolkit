@@ -33,7 +33,7 @@ options:
   -e ERRORS, --errors ERRORS
                         максимальное число ошибок для вывода; по умолчанию 10;
                         установите 0 для вывода всех ошибок
-  --check-vcs           проверка url типа vcs на git/svn/hg-репозиторий
+  --check-vcs           проверка url типа vcs на git/svn/hg/fossil-репозиторий
                         (требуется доступ к Интернет и наличие пакетов git,
                         subversion и mercurial)
   -v, --verbose         побробный вывод
