@@ -867,88 +867,92 @@
         },
         {
           "if": {"not": {"required": ["components"], "properties": {"components": {"type": "array", "minItems": 1}}}},
-          "then": {"required": ["externalReferences"]}
-        },
-        {"$ref": "#/$defs/component"},
-        {
-          "properties": {
-            "externalReferences": {
-              "type": "array",
-              "items": {"$ref": "#/$defs/externalReference"},
-              "if": {
-                "not": {
-                  "contains": {
-                    "properties": {
-                      "type": {"const": "vcs"}
+          "then": {
+            "required": ["externalReferences"],
+            "properties": {
+              "externalReferences": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/externalReference"},
+                "if": {
+                  "not": {
+                    "contains": {
+                      "properties": {
+                        "type": {"const": "vcs"}
+                      }
                     }
                   }
-                }
-              },
-              "then": {
-                "items": {
-                  "if": {
-                    "properties": {
-                      "type": { "const": "source-distribution" }
-                    }
-                  },
-                  "then": {
-                    "allOf": [
-                      { "required": [ "hashes" ] },
-                      {
-                        "properties": {
-                          "hashes": {
-                            "allOf": [
-                              {
-                                "contains": {
-                                  "properties": {
-                                    "alg": {
-                                      "enum": [ "STREEBOG-256", "STREEBOG-512" ]
+                },
+                "then": {
+                  "items": {
+                    "if": {
+                      "properties": {
+                        "type": { "const": "source-distribution" }
+                      }
+                    },
+                    "then": {
+                      "allOf": [
+                        { "required": [ "hashes" ] },
+                        {
+                          "properties": {
+                            "hashes": {
+                              "allOf": [
+                                {
+                                  "contains": {
+                                    "properties": {
+                                      "alg": {
+                                        "enum": [ "STREEBOG-256", "STREEBOG-512" ]
+                                      }
                                     }
                                   }
-                                }
-                              },
-                              {
-                                "items": {
-                                  "if": {
-                                    "properties": {
-                                      "alg": { "const": "STREEBOG-256" }
-                                    }
-                                  },
-                                  "then": {
-                                    "properties": {
-                                      "content": { "pattern": "^[a-fA-F0-9]{64}$" }
-                                    }
-                                  },
-                                  "else": {
+                                },
+                                {
+                                  "items": {
                                     "if": {
                                       "properties": {
-                                        "alg": { "const": "STREEBOG-512" }
+                                        "alg": { "const": "STREEBOG-256" }
                                       }
                                     },
                                     "then": {
                                       "properties": {
-                                        "content": { "pattern": "^[a-fA-F0-9]{128}$" }
+                                        "content": { "pattern": "^[a-fA-F0-9]{64}$" }
+                                      }
+                                    },
+                                    "else": {
+                                      "if": {
+                                        "properties": {
+                                          "alg": { "const": "STREEBOG-512" }
+                                        }
+                                      },
+                                      "then": {
+                                        "properties": {
+                                          "content": { "pattern": "^[a-fA-F0-9]{128}$" }
+                                        }
                                       }
                                     }
                                   }
                                 }
-                              }
-                            ]
+                              ]
+                            }
                           }
                         }
-                      }
-                    ]
+                      ]
+                    }
+                  }
+                },
+                "title": "External References",
+                "description": "External references provide a way to document systems, sites, and information that may be relevant but are not included with the BOM. They may also establish specific relationships within or external to the BOM.",
+                "contains": {
+                  "properties": {
+                    "type": {"enum": ["vcs", "source-distribution"]}
                   }
                 }
-              },
-              "title": "External References",
-              "description": "External references provide a way to document systems, sites, and information that may be relevant but are not included with the BOM. They may also establish specific relationships within or external to the BOM.",
-              "contains": {
-                "properties": {
-                  "type": {"enum": ["vcs", "source-distribution"]}
-                }
               }
-            },
+            }
+          }
+        },
+        {"$ref": "#/$defs/component"},
+        {
+          "properties": {
             "properties": {
               "type": "array",
               "title": "Properties",
