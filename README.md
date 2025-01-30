@@ -36,6 +36,9 @@ options:
   --check-vcs           проверка url типа vcs на git/svn/hg/fossil-репозиторий
                         (требуется доступ к Интернет и наличие пакетов git,
                         subversion и mercurial)
+  --check-vcs-leaf-only
+                        то же, что и --check-vcs, но проверяются только url в
+                        листовых компоентах
   -v, --verbose         побробный вывод
 ```
 

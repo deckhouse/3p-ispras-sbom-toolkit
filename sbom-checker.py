@@ -15,6 +15,7 @@ parser.add_argument('filename', help='входной файл в формате 
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git/svn/hg/fossil-репозиторий (требуется доступ к Интернет и наличие пакетов git, subversion и mercurial)')
+parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то же, что и --check-vcs, но проверяются только url в листовых компоентах')
 parser.add_argument('-v', '--verbose', action='store_true', help='побробный вывод')
 
 with open('./schema.json') as f:
@@ -57,7 +58,7 @@ try:
         print('-'*50)
         if limit and count == limit:
             break
-    if args.check_vcs:
+    if args.check_vcs or args.check_vcs_leaf_only:
         import os
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
         stack = parsed_file.get('components', []).copy()
@@ -66,6 +67,8 @@ try:
         while stack:
             component = stack.pop(0)
             stack += component.get('components', [])
+            if args.check_vcs_leaf_only and component.get('components', []):
+                continue
             refs = component.get('externalReferences', [])
             if type(refs) == list:
                 for ref in refs:
