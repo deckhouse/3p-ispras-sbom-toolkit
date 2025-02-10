@@ -3,5 +3,4 @@ rfc3339-validator
 rfc3987
 odfpy
 requests
-gitpython
 platformdirs

@@ -3,7 +3,6 @@
 
 import argparse
 import datetime
-import git
 import json
 import logging
 import os
@@ -29,7 +28,6 @@ def get_website(ref_arr):
 class RefFinder(object):
     def __init__(self, purl_file=None):
         self._placeholder_url = 'sbom-updater_generated_placeholder:'
-        self._git = git.cmd.Git()
         self._nuget_addr = None
         self._session = Session()
         adapter = adapters.HTTPAdapter(max_retries=5)
@@ -50,7 +48,7 @@ class RefFinder(object):
 
     def is_repo(self, url):
         if not url in self._repo_dict:
-            self._repo_dict[url], ex_str = check_repo(url, self._git)
+            self._repo_dict[url], ex_str = check_repo(url)
             if not self._repo_dict[url]:
                 logging.info(ex_str)
         return self._repo_dict[url]
