@@ -23,6 +23,7 @@ def get_ext_ref(er_list):
 parser = argparse.ArgumentParser(description='генератор таблицы компонентов в формате odt')
 parser.add_argument('input', help='входной файл, содержащий перечень заимствованных компонентов, в JSON формате')
 parser.add_argument('output', help='выходной файл в формате odt, содержащий таблицу со всеми компонентами из входного файла')
+parser.add_argument('-t', '--pa-fb-ontop', action='store_true', help='помещение записей "ПА" и "ФБ" в топ таблицы')
 
 args = parser.parse_args()
 input_data, encoding = opener(args.input)
@@ -31,11 +32,20 @@ doc = load('./template.odt')
 stack = input_data.get('components', []).copy()
 idx = 1
 added_elements = set()
+components = list()
 for item in doc.getElementsByType(Table):
     while stack:
         comp = stack.pop(0)
         if 'components' in comp:
             stack += comp['components']
+        components.append(comp)
+    if args.pa_fb_ontop:
+        components = sorted(components,\
+                            key=lambda x: (get_prop(x.get('properties', []), 'GOST:attack_surface') in {'yes', 'indirect'},\
+                                           get_prop(x.get('properties', []), 'GOST:security_function') in {'yes', 'indirect'}),\
+                                           reverse=True)
+    while components:
+        comp = components.pop(0)
         element = (comp.get('name', ''),
                    comp.get('version', ''),
                    get_prop(comp.get('properties', []), 'source_langs'),
