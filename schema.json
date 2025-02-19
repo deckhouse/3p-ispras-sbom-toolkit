@@ -884,7 +884,7 @@
             "properties": {
               "externalReferences": {
                 "type": "array",
-                "items": {"$ref": "#/$defs/externalReference"},
+                "items": {"$ref": "#/$defs/externalReference_nonempty"},
                 "if": {
                   "not": {
                     "contains": {
@@ -1889,6 +1889,30 @@
           "description": "The email address of the individual who performed the action"
         }
       }
+    },
+    "externalReference_nonempty": {
+      "allOf": [
+        {"$ref": "#/$defs/externalReference"},
+        {"properties":
+          {"url": {
+            "anyOf": [
+              {
+                "title": "URL",
+                "type": "string",
+                "format": "iri-reference",
+                "minLength": 1
+              },
+              {
+                "title": "BOM-Link",
+                "$ref": "#/$defs/bomLink"
+              }
+            ],
+            "title": "URL",
+            "description": "The URI (URL or URN) to the external reference. External references are URIs and therefore can accept any URL scheme including https ([RFC-7230](https://www.ietf.org/rfc/rfc7230.txt)), mailto ([RFC-2368](https://www.ietf.org/rfc/rfc2368.txt)), tel ([RFC-3966](https://www.ietf.org/rfc/rfc3966.txt)), and dns ([RFC-4501](https://www.ietf.org/rfc/rfc4501.txt)). External references may also include formally registered URNs such as [CycloneDX BOM-Link](https://cyclonedx.org/capabilities/bomlink/) to reference CycloneDX BOMs or any object within a BOM. BOM-Link transforms applicable external references into relationships that can be expressed in a BOM or across BOMs."
+          }
+          }
+        }
+      ]
     },
     "externalReference": {
       "type": "object",
