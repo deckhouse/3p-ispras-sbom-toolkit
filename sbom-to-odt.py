@@ -5,6 +5,7 @@ import argparse
 from odf.opendocument import load
 from odf.table import Table, TableRow, TableCell
 from odf.text import P
+from pathlib import Path
 
 from sbom_utils import opener
 
@@ -28,7 +29,7 @@ parser.add_argument('-t', '--pa-fb-ontop', action='store_true', help='помещ
 args = parser.parse_args()
 input_data, encoding = opener(args.input)
 
-doc = load('./template.odt')
+doc = load(Path(__file__).parent / 'template.odt')
 stack = input_data.get('components', []).copy()
 idx = 1
 added_elements = set()
