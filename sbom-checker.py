@@ -18,7 +18,7 @@ parser.add_argument('--check-vcs', action='store_true', help='проверка u
 parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то же, что и --check-vcs, но проверяются только url в листовых компонентах')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
 
-with open(Path(__file__).parent / 'schema.json') as f:
+with open(Path(__file__).parent.resolve() / 'schema.json') as f:
     schema = json.load(f)
 
 registry = None

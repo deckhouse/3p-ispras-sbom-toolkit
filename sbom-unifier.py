@@ -4,6 +4,7 @@
 import argparse
 import datetime
 import json
+from pathlib import Path
 
 from sbom_utils import opener
 
@@ -32,7 +33,7 @@ parser.add_argument('--manufacturer', required=True, help='название ор
 parser.add_argument('input', nargs='+', help='перечень входных файлов в формате CycloneDX JSON для объединения; рекомендуется использовать файлы, проверенные скриптом sbom-checker.py')
 parser.add_argument('output', help='выходной файл, в котором продукты из входных файлов объединены в список компонентов')
 
-with open('schema.json') as f:
+with open(Path(__file__).parent.resolve() / 'schema.json') as f:
     schema = json.load(f)
     keys = set(schema['properties']).intersection(schema['$defs']['component']['properties'])
     if 'version' in keys:

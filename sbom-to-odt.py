@@ -29,7 +29,7 @@ parser.add_argument('-t', '--pa-fb-ontop', action='store_true', help='помещ
 args = parser.parse_args()
 input_data, encoding = opener(args.input)
 
-doc = load(Path(__file__).parent / 'template.odt')
+doc = load(Path(__file__).parent.resolve() / 'template.odt')
 stack = input_data.get('components', []).copy()
 idx = 1
 added_elements = set()

@@ -219,7 +219,7 @@ if not args.manufacturer is None or args.fix_all:
         input_data['metadata']['component']['manufacturer']['name'] = DEFAULT_VALUE
 
 if args.ref or args.fix_all:
-    ref_finder = RefFinder(Path(__file__).parent / 'purl_to_vcs.json')
+    ref_finder = RefFinder(Path(__file__).parent.resolve() / 'purl_to_vcs.json')
     stack = input_data.get('components', []).copy()
     while stack:
         component = stack.pop(0)
