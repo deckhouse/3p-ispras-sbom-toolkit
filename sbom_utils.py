@@ -25,6 +25,22 @@ def parse_repo_url(url):
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['commit'][0]
     if 'tag' in query:
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), query['tag'][0]
+    if parsed_url.netloc == 'git.altlinux.org':
+        query = urllib.parse.parse_qs(parsed_url.query, separator=';')
+        fpath = ''
+        commit = ''
+        if 'f' in query:
+            fpath = query['f'][0]
+        if 'h' in query:
+            commit = query['h'][0]
+        elif 'hb' in query:
+            commit = query['hb'][0]
+        if fpath:
+            if not commit:
+                commit = 'HEAD'
+            return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), commit+'/'+fpath
+        else:
+            return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), commit
     path_pair_list = []
     path_split = path.split('/')
     for idx in range(len(path_split) - 1):
