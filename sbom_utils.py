@@ -8,6 +8,8 @@ import platformdirs
 import subprocess
 import urllib.parse
 
+SP_TIMEOUT = 60 # timeout for subpocess
+
 pattern_dict = {
     'bitbucket.org': ((), ('commits', 'src', 'branch'), 2),
     'codeberg.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
@@ -74,7 +76,7 @@ def check_repo(url):
     result = False
     exc_list = []
     try:
-        res0 = subprocess.run(f'git ls-remote {url}', shell=True, capture_output=True, text=True, timeout=60)
+        res0 = subprocess.run(f'git ls-remote {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
         if res0.stderr:
             exc_list.append(f'ERROR/GIT: {res0.stderr}')
             result = False
@@ -85,7 +87,7 @@ def check_repo(url):
         result = False
     if not result:
         try:
-            res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True, timeout=60)
+            res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
             if res1.stderr:
                 exc_list.append(f'ERROR/SVN: {res1.stderr}')
                 result = False
@@ -96,7 +98,7 @@ def check_repo(url):
             result = False
     if not result:
         try:
-            res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True, timeout=60)
+            res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
             if res2.stderr:
                 exc_list.append(f'ERROR/HG: {res2.stderr}')
                 result = False
@@ -107,7 +109,7 @@ def check_repo(url):
             result = False
     if not result:
         try:
-            res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "<footer>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True, timeout=60)
+            res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "<footer>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
             if res3.stdout.startswith('<footer>'):
                 result = True
             elif res3.stderr:
