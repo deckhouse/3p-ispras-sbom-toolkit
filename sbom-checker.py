@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import argparse
+import concurrent.futures
 import json
 import jsonschema
 import logging
@@ -79,6 +80,7 @@ try:
         stack = parsed_file.get('components', []).copy()
         not_repos = 0
         repo_dict = load_cache()
+        refs_to_check = dict()
         while stack:
             component = stack.pop(0)
             stack += component.get('components', [])
@@ -94,12 +96,23 @@ try:
                             url = res[0]
                         ex_str = ''
                         if not url in repo_dict:
-                            repo_dict[url], ex_str = check_repo(url)
-                            if not repo_dict[url]:
-                                logging.info(ex_str)
-                                not_repos += 1
-                                print(f"WARNING: {ref.get('url', '')} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
-                                print('-'*50)
+                            if not url in refs_to_check:
+                                refs_to_check[url] = set()
+                            refs_to_check[url].add(ref.get('url', ''))
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_url = {executor.submit(check_repo, url): url for url in refs_to_check.keys()}
+            for future in concurrent.futures.as_completed(future_to_url):
+                url = future_to_url[future]
+                try:
+                    repo_dict[url], ex_str = future.result()
+                except Exception as exc:
+                    print('ERROR: %r generated an exception: %s' % (url, exc))
+                else:
+                    if not repo_dict[url]:
+                        logging.info(ex_str)
+                        not_repos += len(refs_to_check[url])
+                        print(f"WARNING: {refs_to_check[url]} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
+                        print('-'*50)
         dump_cache({k:v for k,v in repo_dict.items() if v})
         if not_repos == 0 and count == 0:
             print('файл корректный')
