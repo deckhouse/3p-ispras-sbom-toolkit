@@ -6,6 +6,7 @@ import json
 import jsonschema
 import logging
 from pathlib import Path
+import re
 from referencing import Registry, Resource
 
 from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache
@@ -54,7 +55,21 @@ try:
     limit = args.errors
     for err in errors:
         count += 1
-        print("ERROR: " + str(err))
+        if err.message.endswith(' has non-unique elements'):
+            p = re.compile('(?<!\\\\)\'')
+            arr = json.loads(p.sub('\"', err.message[:-24]))
+            dups = []
+            for n, i in enumerate(arr):
+                if i in arr[n+1:] and not i in dups:
+                    dups.append(i)
+            inst = ''
+            for line in str(err).split('\n'):
+                if line.startswith('On instance'):
+                    inst = line[:-1]
+                    break
+            print(f'ERROR: {inst} non-unique elements:\n' + '\n'.join([str(x) for x in dups]))
+        else:
+            print("ERROR: " + str(err))
         print('-'*50)
         if limit and count == limit:
             break
