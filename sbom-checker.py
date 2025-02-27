@@ -109,10 +109,11 @@ try:
                     print('ERROR: %r generated an exception: %s' % (url, exc))
                 else:
                     if not repo_dict[url]:
-                        logging.info(ex_str)
                         not_repos += len(refs_to_check[url])
-                        print(f"WARNING: {refs_to_check[url]} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
-                        print('-'*50)
+                        for u in sorted(list(refs_to_check[url])):
+                            logging.info(ex_str)
+                            print(f"WARNING: {u} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
+                            print('-'*50)
         dump_cache({k:v for k,v in repo_dict.items() if v})
         if not_repos == 0 and count == 0:
             print('файл корректный')
