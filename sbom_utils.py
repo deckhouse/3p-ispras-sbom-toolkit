@@ -77,7 +77,7 @@ def check_repo(url):
     exc_list = []
     try:
         res0 = subprocess.run(f'git ls-remote {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
-        if res0.stderr:
+        if res0.returncode != 0:
             exc_list.append(f'ERROR/GIT: {res0.stderr}')
             result = False
         else:
@@ -88,7 +88,7 @@ def check_repo(url):
     if not result:
         try:
             res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
-            if res1.stderr:
+            if res1.returncode != 0:
                 exc_list.append(f'ERROR/SVN: {res1.stderr}')
                 result = False
             else:
@@ -99,7 +99,7 @@ def check_repo(url):
     if not result:
         try:
             res2 = subprocess.run(f'hg identify {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
-            if res2.stderr:
+            if res2.returncode != 0:
                 exc_list.append(f'ERROR/HG: {res2.stderr}')
                 result = False
             else:
@@ -112,7 +112,7 @@ def check_repo(url):
             res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "<footer>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
             if res3.stdout.startswith('<footer>'):
                 result = True
-            elif res3.stderr:
+            elif res3.returncode != 0:
                 exc_list.append(f'ERROR/FOSSIL: {res3.stderr}')
                 result = False
             else:
