@@ -69,6 +69,8 @@ try:
                     inst = line[:-1]
                     break
             print(f'ERROR: {inst} non-unique elements:\n' + '\n'.join([str(x) for x in dups]))
+        if err.message.startswith('Additional properties are not allowed'):
+            print(f'ERROR: {err.message}\n\nOn {jsonschema.exceptions._pretty(err.instance, 16 * " ")}')
         else:
             print("ERROR: " + str(err))
         print('-'*50)
