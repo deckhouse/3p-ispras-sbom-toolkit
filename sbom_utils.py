@@ -109,8 +109,8 @@ def check_repo(url):
             result = False
     if not result:
         try:
-            res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "<footer>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
-            if res3.stdout.startswith('<footer>'):
+            res3 = subprocess.run(f'curl --silent {url} 2>&1 | grep -iPzo "footer\"?>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil"', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
+            if 'footer' in res3.stdout:
                 result = True
             elif res3.returncode != 0:
                 exc_list.append(f'ERROR/FOSSIL: {res3.stderr}')
