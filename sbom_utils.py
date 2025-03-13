@@ -43,6 +43,17 @@ def parse_repo_url(url):
             return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), commit+'/'+fpath
         else:
             return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), commit
+    if parsed_url.netloc == 'git.netfilter.org':
+        query = urllib.parse.parse_qs(parsed_url.query)
+        commit = ''
+        if 'id' in query:
+            commit = query['id'][0]
+        elif 'h' in query:
+            commit = query['h'][0]
+        path_split = path.split('/')
+        if len(path_split) <= 2:
+            return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path_split[0]), commit
+        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path_split[0]), commit+'/'+'/'.join(path_split[2:])
     path_pair_list = []
     path_split = path.split('/')
     for idx in range(len(path_split) - 1):
