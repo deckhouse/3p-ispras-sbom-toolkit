@@ -58,7 +58,7 @@ try:
         count += 1
         if err.message.endswith(' has non-unique elements'):
             p = re.compile('(?<!\\\\)\'')
-            arr = json.loads(p.sub('\"', err.message[:-24]))
+            arr = err.instance
             dups = []
             for n, i in enumerate(arr):
                 if i in arr[n+1:] and not i in dups:
@@ -69,7 +69,7 @@ try:
                     inst = line[:-1]
                     break
             print(f'ERROR: {inst} non-unique elements:\n' + '\n'.join([str(x) for x in dups]))
-        if err.message.startswith('Additional properties are not allowed'):
+        elif err.message.startswith('Additional properties are not allowed'):
             print(f'ERROR: {err.message}\n\nOn {jsonschema.exceptions._pretty(err.instance, 16 * " ")}')
         else:
             print("ERROR: " + str(err))
