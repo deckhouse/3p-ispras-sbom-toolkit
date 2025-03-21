@@ -878,7 +878,27 @@
           ]
         },
         {
-          "if": {"not": {"required": ["components"], "properties": {"components": {"type": "array", "minItems": 1}}}},
+          "if": {
+            "allOf": [
+              {"not": {"required": ["components"], "properties": {"components": {"type": "array", "minItems": 1}}}},
+              {"not": {"required": ["properties"],
+                "properties": {
+                  "properties": {
+                      "contains": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "const": "GOST:provided_by"
+                          },
+                          "value": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["name", "value"]
+                      }
+              }}}}
+            ]
+          },
           "then": {
             "required": ["externalReferences"],
             "properties": {
