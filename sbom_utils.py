@@ -53,6 +53,8 @@ def parse_repo_url(url):
         path_split = path.split('/')
         if len(path_split) <= 2:
             return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path_split[0]), commit
+        if not commit:
+            commit = 'HEAD'
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path_split[0]), commit+'/'+'/'.join(path_split[2:])
     path_pair_list = []
     path_split = path.split('/')
@@ -69,7 +71,7 @@ def parse_repo_url(url):
         elif len(path_split) > prefix and path_split[prefix] in pattern_dict[parsed_url.netloc][1]:
             idx =  prefix
     else:
-        for s in [('-', 'commit'), ('-', 'commits'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('releases', 'tag')]:
+        for s in [('-', 'commit'), ('-', 'commits'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('-', 'releases'), ('releases', 'tag')]:
             if s in path_pair_list[prefix:]:
                 idx = path_pair_list[prefix:].index(s) + prefix
                 flag = 1
