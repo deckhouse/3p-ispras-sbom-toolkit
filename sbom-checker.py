@@ -18,10 +18,10 @@ parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git/svn/hg/fossil-репозиторий (требуется доступ к Интернет и наличие пакетов git, subversion и mercurial)')
 parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то же, что и --check-vcs, но проверяются только url в листовых компонентах')
+parser.add_argument('--format', type=str, default='oss',
+                    help='--format=oss для проверки файла-перечня заимствованных программных компонентов с открытым исходным кодом; --format=container для проверки файла-перечня образов контейнеров; по умолчанию oss')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
 
-with open(Path(__file__).parent.resolve() / 'schema.json') as f:
-    schema = json.load(f)
 
 registry = None
 with open(Path(__file__).parent.resolve() / 'additional_schemas' / "spdx.schema.json") as f:
@@ -45,6 +45,8 @@ data, encoding = opener(args.filename, pairs=True)
 with open(args.filename, encoding=encoding) as f:
     parsed_file = json.load(f)
 try:
+    with open(Path(__file__).parent.resolve() / 'schemas' / ('schema_container.json' if args.format == 'container' else 'schema.json')) as f:
+        schema = json.load(f)
     cls = jsonschema.validators.validator_for(schema)
     cls.check_schema(schema)
     if registry:
