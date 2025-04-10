@@ -17,6 +17,7 @@ pattern_dict = {
     'hg.code.sf.net': ((), ('file', 'rev', 'shortlog'), 3),
     'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
     'src.libcode.org': ((), ('src', 'commit'), 2),
+    'hg.openjdk.org': ((), ('file', 'rev', 'shortlog'), 2),
 }
 
 def parse_repo_url(url):
@@ -65,11 +66,16 @@ def parse_repo_url(url):
     prefix = 2
     if parsed_url.netloc in pattern_dict:
         prefix = pattern_dict[parsed_url.netloc][2]
-        if len(path_pair_list) > prefix and path_pair_list[prefix] in pattern_dict[parsed_url.netloc][0]:
-            idx = prefix
-            flag = 1
-        elif len(path_split) > prefix and path_split[prefix] in pattern_dict[parsed_url.netloc][1]:
-            idx =  prefix
+        for s in pattern_dict[parsed_url.netloc][0]:
+            if len(path_pair_list) > prefix and s in path_pair_list[prefix:]:
+                idx = path_pair_list[prefix:].index(s) + prefix
+                flag = 1
+                break
+        else:
+            for s in pattern_dict[parsed_url.netloc][1]:
+                if len(path_split) > prefix and s in path_split[prefix:]:
+                    idx = path_split[prefix:].index(s) + prefix
+                    break
     else:
         for s in [('-', 'commit'), ('-', 'commits'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('-', 'releases'), ('releases', 'tag')]:
             if s in path_pair_list[prefix:]:
