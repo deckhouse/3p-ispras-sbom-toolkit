@@ -87,8 +87,10 @@ try:
         refs_to_check = dict()
         while stack:
             component = stack.pop(0)
-            stack += component.get('components', [])
-            if args.check_vcs_leaf_only and component.get('components', []):
+            components_value = component.get('components', [])
+            if components_value:
+                stack += components_value
+            if args.check_vcs_leaf_only and components_value:
                 continue
             refs = component.get('externalReferences', [])
             if type(refs) == list:
