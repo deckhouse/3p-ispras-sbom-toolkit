@@ -166,4 +166,10 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+  -t, --pa-fb-ontop  помещение записей "ПА" и "ФБ" в топ таблицы
+  --format FORMAT    --format=oss если входной файл — перечень заимствованных
+                     программных компонентов с открытым исходным кодом;
+                     --format=container если входной файл — перечень образов
+                     контейнеров; по умолчанию oss
+
 ```
