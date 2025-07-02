@@ -11,13 +11,15 @@ import urllib.parse
 SP_TIMEOUT = 60 # timeout for subpocess
 
 pattern_dict = {
-    'bitbucket.org': ((), ('commits', 'src', 'branch'), 2),
-    'codeberg.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
-    'github.com': ((('releases', 'tag'),), ('commit', 'blob', 'tree'), 2),
-    'hg.code.sf.net': ((), ('file', 'rev', 'shortlog'), 3),
-    'opendev.org': ((('src', 'branch'), ('src', 'commit'), ('src', 'tag'), ('releases', 'tag')), ('commit',), 2),
-    'src.libcode.org': ((), ('src', 'commit'), 2),
-    'hg.openjdk.org': ((), ('file', 'rev', 'shortlog'), 2),
+    'bitbucket.org': [[['commits'], ['src'], ['branch']], 2],
+    'codeberg.org': [[['src', 'branch'], ['src', 'commit'], ['src', 'tag'], ['releases', 'tag'], ['commit']], 2],
+    'github.com': [[['releases', 'tag'], ['commit'], ['blob'], ['tree']], 2],
+    'hg.code.sf.net': [[['file'], ['rev'], ['shortlog']], 3],
+    'opendev.org': [[['src', 'branch'], ['src', 'commit'], ['src', 'tag'], ['releases', 'tag'], ['commit']], 2],
+    'src.libcode.org': [[['src'], ['commit']], 2],
+    'hg.openjdk.org': [[['file'], ['rev'], ['shortlog']], 2],
+    'chromium.googlesource.com': [[['+', 'refs', 'heads']], 1],
+    'webrtc.googlesource.com': [[['+', 'refs', 'heads']], 1],
 }
 
 def parse_repo_url(url):
@@ -57,38 +59,30 @@ def parse_repo_url(url):
         if not commit:
             commit = 'HEAD'
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path_split[0]), commit+'/'+'/'.join(path_split[2:])
-    path_pair_list = []
     path_split = path.split('/')
-    for idx in range(len(path_split) - 1):
-        path_pair_list.append((path_split[idx], path_split[idx+1]))
-    idx = -1
-    flag = 0
+    idx = [-1,-1]
     prefix = 2
     if parsed_url.netloc in pattern_dict:
-        prefix = pattern_dict[parsed_url.netloc][2]
+        prefix = pattern_dict[parsed_url.netloc][1]
         for s in pattern_dict[parsed_url.netloc][0]:
-            if len(path_pair_list) > prefix and s in path_pair_list[prefix:]:
-                idx = path_pair_list[prefix:].index(s) + prefix
-                flag = 1
-                break
-        else:
-            for s in pattern_dict[parsed_url.netloc][1]:
-                if len(path_split) > prefix and s in path_split[prefix:]:
-                    idx = path_split[prefix:].index(s) + prefix
+            for i in range(len(path_split[prefix:])):
+                if path_split[prefix:][i:i+len(s)] == s:
+                    idx = [prefix+i, prefix+i+len(s)]
                     break
+            else:
+                continue
+            break
     else:
-        for s in [('-', 'commit'), ('-', 'commits'), ('-', 'tags'), ('-', 'tree'), ('-', 'blob'), ('-', 'releases'), ('releases', 'tag')]:
-            if s in path_pair_list[prefix:]:
-                idx = path_pair_list[prefix:].index(s) + prefix
-                flag = 1
-                break
-        else:
-            for s in ['commit', 'blob', 'tree']:
-                if s in path_split[prefix:]:
-                    idx = path_split[prefix:].index(s) + prefix
+        for s in [['-', 'commit'], ['-', 'commits'], ['-', 'tags'], ['-', 'tree'], ['-', 'blob'], ['-', 'releases'], ['releases', 'tag'], ['commit'], ['blob'], ['tree']]:
+            for i in range(len(path_split[prefix:])):
+                if path_split[prefix:][i:i+len(s)] == s:
+                    idx = [prefix+i, prefix+i+len(s)]
                     break
-    if idx > 0:
-        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx])), '/'.join(path_split[idx+1+flag:])
+            else:
+                continue
+            break
+    if idx[0] > 0:
+        return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx[0]])), '/'.join(path_split[idx[1]:])
     return None
 
 def check_repo(url):
