@@ -18,8 +18,8 @@ pattern_dict = {
     'opendev.org': [[['src', 'branch'], ['src', 'commit'], ['src', 'tag'], ['releases', 'tag'], ['commit']], 2],
     'src.libcode.org': [[['src'], ['commit']], 2],
     'hg.openjdk.org': [[['file'], ['rev'], ['shortlog']], 2],
-    'chromium.googlesource.com': [[['+', 'refs', 'heads']], 1],
-    'webrtc.googlesource.com': [[['+', 'refs', 'heads']], 1],
+    'chromium.googlesource.com': [[['+', 'refs', 'heads'], ['+']], 1],
+    'webrtc.googlesource.com': [[['+', 'refs', 'heads'], ['+']], 1],
 }
 
 def parse_repo_url(url):
