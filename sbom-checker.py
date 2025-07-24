@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 from referencing import Registry, Resource
 
-from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache
+from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
@@ -18,6 +18,7 @@ parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git/svn/hg/fossil-репозиторий (требуется доступ к Интернет и наличие пакетов git, subversion и mercurial)')
 parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то же, что и --check-vcs, но проверяются только url в листовых компонентах')
+parser.add_argument('--check-source-distribution', action='store_true', help='проверка существования URL для типа source-distribution и проверка того, что по указанной URL находится архив')
 parser.add_argument('--format', type=str, default='oss',
                     help='--format=oss для проверки файла-перечня заимствованных программных компонентов с открытым исходным кодом; --format=container для проверки файла-перечня образов контейнеров; по умолчанию oss')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
@@ -78,12 +79,15 @@ try:
         print('-'*50)
         if limit and count == limit:
             break
-    if args.check_vcs or args.check_vcs_leaf_only:
+    if args.check_vcs or args.check_vcs_leaf_only or args.check_source_distribution:
         import os
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
         stack = parsed_file.get('components', []).copy()
         not_repos = 0
-        repo_dict = load_cache()
+        repo_dict = load_cache('vcs')
+        src_list = set()
+        src_results = load_cache('source-distribution')
+        not_arch_url = 0
         refs_to_check = dict()
         while stack:
             component = stack.pop(0)
@@ -105,23 +109,38 @@ try:
                             if not url in refs_to_check:
                                 refs_to_check[url] = set()
                             refs_to_check[url].add(ref.get('url', ''))
+                    if args.check_source_distribution:
+                        if type(ref) == dict and ref.get('type', '') == 'source-distribution':
+                            url = ref.get('url', '')
+                            if not url in src_results:
+                                src_list.add(url)
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_url = {executor.submit(check_repo, url): url for url in refs_to_check.keys()}
+            future_to_url = {executor.submit(check_repo, url): ('vcs', url) for url in refs_to_check.keys()}
+            future_to_url.update({executor.submit(is_archive_url, url): ('source-distribution', url) for url in src_list})
             for future in concurrent.futures.as_completed(future_to_url):
-                url = future_to_url[future]
+                type, url = future_to_url[future]
                 try:
-                    repo_dict[url], ex_str = future.result()
+                    if type == 'vcs':
+                        repo_dict[url], ex_str = future.result()
+                    elif type == 'source-distribution':
+                        src_results[url], ex_str = future.result()
                 except Exception as exc:
                     print('ERROR: %r generated an exception: %s' % (url, exc))
                 else:
-                    if not repo_dict[url]:
+                    if type == 'vcs' and not repo_dict[url]:
                         not_repos += len(refs_to_check[url])
                         for u in sorted(list(refs_to_check[url])):
                             logging.info(ex_str)
                             print(f"WARNING: {u} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
                             print('-'*50)
-        dump_cache({k:v for k,v in repo_dict.items() if v})
-        if not_repos == 0 and count == 0:
+                    if type == 'source-distribution' and not src_results[url]:
+                        not_arch_url += 1
+                        logging.info(ex_str)
+                        print(f"WARNING: {url} не указывает на архив или не существует")
+                        print('-'*50)
+        dump_cache('vcs', {k:v for k,v in repo_dict.items() if v})
+        dump_cache('source-distribution', {k:v for k,v in src_results.items() if v})
+        if not_repos == 0 and count == 0 and not_arch_url == 0:
             print('файл корректный')
     elif count == 0:
         print('файл корректный')

@@ -7,6 +7,8 @@ import os
 import platformdirs
 import subprocess
 import urllib.parse
+import requests
+import re
 
 SP_TIMEOUT = 60 # timeout for subpocess
 
@@ -159,14 +161,90 @@ def opener(filename, pairs=False):
         encoding = 'utf-8-sig'
     return data, encoding
 
-def load_cache():
-    cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
+def load_cache(type):
+    if type == 'vcs':
+        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
+    elif type == 'source-distribution':
+        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_source_distribution.json'
     if os.path.isfile(cache_file):
         with open(cache_file) as f:
             return json.load(f)
     return dict()
 
-def dump_cache(data):
-    cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
+def dump_cache(type, data):
+    if type == 'vcs':
+        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
+    elif type == 'source-distribution':
+        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_source_distribution.json'
     with open(cache_file, 'w') as f:
         json.dump(data, f)
+
+def is_archive_url(url, timeout=10):
+    """Проверяет, является ли URL архивом"""
+    archive_mime_types = {
+        'application/zip', 'application/x-rar-compressed', 
+        'application/x-7z-compressed', 'application/x-tar',
+        'application/gzip', 'application/x-bzip2', 
+        'application/x-xz', 'application/x-zip-compressed',
+        'application/octet-stream', 'application/x-msdownload',
+        'application/x-rpm', 'application/java-archive'
+    }
+    
+    archive_extensions = {
+        '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', 
+        '.xz', '.tgz', '.tbz2', '.tar.gz', '.tar.bz2', 
+        '.tar.xz', '.zipx', '.iso', '.cab', '.arj', '.src.rpm', '.jar'
+    }
+    exc_list = []
+    result = False
+    try:
+        # Пробуем HEAD запрос
+        response = requests.head(url, allow_redirects=True, timeout=timeout)
+        # Если HEAD возвращает 405 (Method Not Allowed), пробуем GET
+        if response.status_code == 405:
+            response = requests.get(url, stream=True, timeout=timeout, allow_redirects=True, headers={'Range': 'bytes=0-1024'})
+        response.raise_for_status()
+
+        # Проверка Content-Type
+        content_type = response.headers.get('Content-Type', '').split(';')[0].strip().lower()
+        if content_type not in archive_mime_types:
+            exc_list.append(f"ERROR: MIME тип содержимого не соответствует типу архива: {content_type}")
+            result = False
+        else:
+            result = True
+
+        # Проверка расширения в URL
+        if not result:
+            parsed_url = urllib.parse.urlparse(url)
+            path = parsed_url.path
+            filename = path.split('/')[-1].lower() if path else ''
+            if not any(filename.endswith(ext) for ext in archive_extensions):
+                exc_list.append(f"ERROR: Расширение файла в URL не соответствует расширению архива.")
+                result = False
+            else:
+                result = True
+
+        # Проверка Content-Disposition
+        if not result:
+            content_disposition = response.headers.get('Content-Disposition', '')
+            if content_disposition:
+                # Извлечение имени файла
+                filenames = re.findall(r'filename\*?=["\']?(?:UTF-\d["\']?)?([^;"\'\n]+)', content_disposition, re.IGNORECASE)
+                if not filenames:
+                    filenames = re.findall(r'filename=["\']?([^;"\'\n]+)', content_disposition, re.IGNORECASE)
+                for name in filenames:
+                    name = name.strip().lower()
+                    if not any(name.endswith(ext) for ext in archive_extensions):
+                        exc_list.append(f"ERROR: Расширение файла в Content-Disposition не соответствует расширению архива.")
+                        result = False
+                    else:
+                        result = True
+        return result, '\n'.join(exc_list)
+    
+    except Exception as e:
+        exc_list.append(f"ERROR: {str(e)}")
+        result = False
+        return result, '\n'.join(exc_list)
+    finally:
+        if 'response' in locals():
+            response.close()
