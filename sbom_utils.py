@@ -183,20 +183,14 @@ def opener(filename, pairs=False):
     return data, encoding
 
 def load_cache(type):
-    if type == 'vcs':
-        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
-    elif type == 'source-distribution':
-        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_source_distribution.json'
+    cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / f"check_{type.replace('-', '_')}.json"
     if os.path.isfile(cache_file):
         with open(cache_file) as f:
             return json.load(f)
     return dict()
 
 def dump_cache(type, data):
-    if type == 'vcs':
-        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_vcs.json'
-    elif type == 'source-distribution':
-        cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / 'check_source_distribution.json'
+    cache_file = platformdirs.user_cache_path('sbom-checker', ensure_exists=True) / f"check_{type.replace('-', '_')}.json"
     with open(cache_file, 'w') as f:
         json.dump(data, f)
 

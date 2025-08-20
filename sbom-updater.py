@@ -44,7 +44,7 @@ class RefFinder(object):
                 self._purl_to_url = json.load(f)
         except Exception:
             pass
-        self._repo_dict = load_cache()
+        self._repo_dict = load_cache('vcs')
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
 
     def is_repo(self, url):
@@ -55,7 +55,7 @@ class RefFinder(object):
         return self._repo_dict[url]
 
     def dump_repos(self):
-        dump_cache({k:v for k,v in self._repo_dict.items() if v})
+        dump_cache('vcs', {k:v for k,v in self._repo_dict.items() if v})
 
     def process_purl(self, purl):
         if purl in self._purl_to_url:
