@@ -61,6 +61,27 @@ def parse_repo_url(url):
         if not commit:
             commit = 'HEAD'
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path_split[0]), commit+'/'+'/'.join(path_split[2:])
+    if parsed_url.netloc == 'gitbox.apache.org':
+        try:
+            query = urllib.parse.parse_qs(parsed_url.query, separator=';')
+        except Exception:
+            query = urllib.parse.parse_qs(parsed_url.query)
+        fpath = ''
+        commit = ''
+        if 'p' in query:
+            path = os.path.join(path, query['p'][0])
+        if 'f' in query:
+            fpath = query['f'][0]
+        if 'h' in query:
+            commit = query['h'][0]
+        elif 'hb' in query:
+            commit = query['hb'][0]
+        if fpath:
+            if not commit:
+                commit = 'HEAD'
+            return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), commit+'/'+fpath
+        else:
+            return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + path), commit
     path_split = path.split('/')
     idx = [-1,-1]
     prefix = 2
