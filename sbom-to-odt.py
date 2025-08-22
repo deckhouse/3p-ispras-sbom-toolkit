@@ -8,13 +8,7 @@ from odf.text import P
 from odf.style import TextProperties
 from pathlib import Path
 
-from sbom_utils import opener
-
-def get_prop(arr, name):
-    for elem in arr:
-        if elem.get('name', '') == name:
-            return elem.get('value', '')
-    return ''
+from sbom_utils import opener, get_prop, combine_source_langs
 
 def get_ext_ref(er_list):
     for er in er_list:
@@ -51,11 +45,12 @@ if args.format == 'oss':
                                             reverse=True)
         while components:
             comp = components.pop(0)
+            props = comp.get('properties', [])
             element = (comp.get('name', ''),
                     comp.get('version', ''),
-                    get_prop(comp.get('properties', []), 'source_langs'),
-                    get_prop(comp.get('properties', []), 'GOST:attack_surface'),
-                    get_prop(comp.get('properties', []), 'GOST:security_function'),
+                    combine_source_langs(get_prop(props, 'GOST:source_langs'), get_prop(props, 'source_langs')),
+                    get_prop(props, 'GOST:attack_surface'),
+                    get_prop(props, 'GOST:security_function'),
                     get_ext_ref(comp.get('externalReferences', [])))
             if element in added_elements:
                 continue

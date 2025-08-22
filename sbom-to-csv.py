@@ -3,14 +3,7 @@
 
 import csv, argparse
 
-from sbom_utils import opener
-
-def get_prop(arr, name):
-    for elem in arr:
-        if elem.get('name', '') == name:
-            return elem.get('value', '')
-    return ''
-
+from sbom_utils import opener, get_prop, combine_source_langs
 
 parser = argparse.ArgumentParser(description='генератор таблицы компонентов в формате csv')
 parser.add_argument('input', help='входной файл, содержащий перечень заимствованных компонентов, в JSON формате')
@@ -48,13 +41,13 @@ while stack:
     if attack_surface in ['yes', 'indirect', 'no']: special_function["GOST:attack_surface"] = attack_surface
     security_function = get_prop(props, 'GOST:security_function')
     if security_function in ['yes', 'indirect', 'no']: special_function["GOST:security_function"] = security_function
-    element = (component['name'], component['version'], get_prop(props, 'source_langs'), special_function, urls)
+    element = (component['name'], component['version'], combine_source_langs(get_prop(props, 'GOST:source_langs'), get_prop(props, 'source_langs')), str(special_function), urls)
     if element in added_elements:
         continue
     added_elements.add(element)
     with open(args.output, 'a', newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([idx, component['name'], component['version'], get_prop(props, 'source_langs'), special_function, urls])
+        writer.writerow([idx, component['name'], component['version'], combine_source_langs(get_prop(props, 'GOST:source_langs'), get_prop(props, 'source_langs')), special_function, urls])
     idx += 1
 
 

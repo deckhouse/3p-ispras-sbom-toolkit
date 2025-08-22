@@ -263,3 +263,19 @@ def is_archive_url(url, timeout=10):
     finally:
         if 'response' in locals():
             response.close()
+
+def get_prop(arr, name):
+    for elem in arr:
+        if elem.get('name', '') == name:
+            return elem.get('value', '')
+    return ''
+
+def combine_source_langs(sl1, sl2):
+    if sl1 and not sl2 or not sl1 and sl2:
+        return sl1 or sl2
+    result = [sl.strip() for sl in sl1.split(',')]
+    for sl in sl2.split(','):
+        sl = sl.strip()
+        if not sl in result:
+            result.append(sl)
+    return ', '.join(result)
