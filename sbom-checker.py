@@ -79,6 +79,51 @@ try:
         print('-'*50)
         if limit and count == limit:
             break
+    if args.format == 'container':
+        values = {'yes': 2, 'indirect': 1, 'no': 0}
+        for container in parsed_file.get('components', []):
+            attack_surface = get_prop(container.get('properties', []), 'GOST:attack_surface')
+            security_function = get_prop(container.get('properties', []), 'GOST:security_function')
+            stack = container.get('components', []).copy()
+            eq_as = eq_sf = False
+            while stack:
+                component = stack.pop(0)
+                components_value = component.get('components', [])
+                if components_value:
+                    stack += components_value
+                component_attack_surface = get_prop(component.get('properties', []), 'GOST:attack_surface')
+                component_security_function = get_prop(component.get('properties', []), 'GOST:security_function')
+                if values[component_attack_surface] > values[attack_surface]:
+                    count += 1
+                    print(f"ERROR: контейнер \"{container['name']}\" сожержит компонент \"{component['name']}\" с бóльшим значением поверхности атаки ({component_attack_surface} > {attack_surface})")
+                    print('-'*50)
+                elif not eq_as and values[component_attack_surface] == values[attack_surface]:
+                    eq_as = True
+                if limit and count >= limit:
+                    break
+                if values[component_security_function] > values[security_function]:
+                    count += 1
+                    print(f"ERROR: контейнер \"{container['name']}\" сожержит компонент \"{component['name']}\" с бóльшим значением функции безопасности ({component_security_function} > {security_function})")
+                    print('-'*50)
+                elif not eq_sf and values[component_security_function] == values[security_function]:
+                    eq_sf = True
+                if limit and count >= limit:
+                    break
+            else:
+                if not eq_as:
+                    count += 1
+                    print(f"ERROR: контейнер \"{container['name']}\" не сожержит компонентов со значением его поверхности атаки ({security_function})")
+                    print('-'*50)
+                if limit and count >= limit:
+                    break
+                if not eq_sf:
+                    count += 1
+                    print(f"ERROR: контейнер \"{container['name']}\" не сожержит компонентов со значением его функции безопасности ({security_function})")
+                    print('-'*50)
+                if limit and count >= limit:
+                    break
+                continue
+            break
     if args.check_vcs or args.check_vcs_leaf_only or args.check_source_distribution:
         import os
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
