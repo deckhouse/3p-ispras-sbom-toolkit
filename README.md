@@ -81,9 +81,13 @@ options:
   --manufacturer MANUFACTURER
                         установить название организации — изготовителя
                         продукта
+  --type                установить тип продукта
   --ref                 установить поле "externalReferences", основываясь на
                         поле "purl" компонента; если ссылки на репозиторий не
                         было найдено, используется "sbom-updater_generated_placeholder:"
+  --use-apt             использовать apt source для получения ссылок на архивы с
+                        исходными кодами для компонентов pkg:deb (только для запуска в
+                        debian based системах с добавленными deb-src репозиториями)
   --fix-all             применить все вышеописанные опции; если необходимое
                         поле остутствует и его значение не указано,
                         используется "TODO"
@@ -103,6 +107,39 @@ options:
 {
   "pkg:gem/aasm@5.5.0": "https://github.com/aasm/aasm",
   "pkg:nuget/NLog.Extensions.Logging@5.3.12": "https://github.com/NLog/NLog.Extensions.Logging"
+}
+```
+
+#### purl_to_lang.json
+
+Данный файл используется для заполнения поля `"language"` компонент на основе purl при использовании скрипта с опциями `--ref` или `--fix-all`.
+Содержимое файла должно представлять единственный объект, в котором ключ — purl, а значение строка с перечнем языков, которые использовались при написании компонента.
+
+Пример содержания:
+```
+{
+  "pkg:deb/td-agent@4.2.0-1#/var/lib/dpkg": "Ruby, C",
+  "pkg:npm/@types/moment-timezone@0.5.30": "TypeScript"
+}
+```
+
+#### purl_to_props.json
+
+Данный файл используется для добавление в поле `"properties"` компонента на основе purl при использовании
+скрипта с опциями `--props` или `--fix-all`.
+Содержимое файла должно представлять единственный объект, в котором ключ - purl, а значение это объект, содержащий свойства компонента, где ключ - name свойства, а значение value свойства.
+
+Пример содержания:
+```
+{
+    "pkg:npm/spacevm@6.5.6": {
+        "GOST:attack_surface": "yes",
+        "GOST:security_function": "no"
+    },
+    "pkg:pypi/sqlalchemy@2.0.21": {
+        "GOST:attack_surface": "no",
+        "GOST:security_function": "yes"
+    }
 }
 ```
 
