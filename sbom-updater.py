@@ -277,7 +277,7 @@ if args.fix_all:
 if args.delete or args.fix_all:
     purl_to_delete = list()
     try:
-        with open('./purl_to_delete.json') as f:
+        with open(Path(__file__).parent.resolve() / 'purl_to_delete.json') as f:
             purl_to_delete = json.load(f)
     except Exception:
         pass
@@ -286,7 +286,7 @@ if args.delete or args.fix_all:
 if args.props or args.fix_all or args.props_no:
     purl_to_props = dict()
     try:
-        with open('./purl_to_props.json') as f:
+        with open(Path(__file__).parent.resolve() /  'purl_to_props.json') as f:
             purl_to_props = json.load(f)
     except Exception:
         pass
@@ -363,7 +363,7 @@ if not args.type is None or args.fix_all:
         input_data['metadata']['component']['type'] = DEFAULT_VALUE
 
 if args.ref or args.fix_all:
-    ref_finder = RefFinder(purl_file='./purl_to_vcs.json', purl_lang_file='./purl_to_lang.json')
+    ref_finder = RefFinder(purl_file=Path(__file__).parent.resolve() / 'purl_to_vcs.json', purl_lang_file= Path(__file__).parent.resolve() / 'purl_to_lang.json')
     stack = input_data.get('components', []).copy()
     while stack:
         component = stack.pop(0)
