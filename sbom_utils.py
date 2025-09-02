@@ -158,6 +158,17 @@ def check_repo(url):
         except Exception as e:
             exc_list.append(f'ERROR/FOSSIL: {e}')
             result = False
+    if not result:
+        try:
+            res4 =  subprocess.run(f'bzr info "{url}"', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
+            if res4.returncode != 0:
+                exc_list.append(f'ERROR/BZR: {res0.stderr}')
+                result = False
+            else:
+                result = True
+        except Exception as e:
+            exc_list.append(f'ERROR/BZR: {e}')
+            result = False
     return result, '\n'.join(exc_list)
 
 def validate_no_duplicate_keys(list_of_pairs):
