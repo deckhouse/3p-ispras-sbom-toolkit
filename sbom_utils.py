@@ -123,7 +123,7 @@ def check_repo(url):
         result = False
     if not result:
         try:
-            res1 = subprocess.run(f'svn ls {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
+            res1 = subprocess.run(f'svn ls --non-interactive {url}', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
             if res1.returncode != 0:
                 exc_list.append(f'ERROR/SVN: {res1.stderr}')
                 result = False
