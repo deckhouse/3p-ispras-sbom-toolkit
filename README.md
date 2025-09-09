@@ -21,7 +21,7 @@ pip install -r requirements.txt
 ```
 prompt> python sbom-checker.py --help
 
-usage: sbom-checker.py [-h] [-e ERRORS] [--check-vcs] filename
+usage: sbom-checker.py [-h] [-e ERRORS] [--check-vcs] [--check-vcs-leaf-only] [--check-source-distribution] [--format FORMAT] [--fixed-output FIXED_OUTPUT] [-v] filename
 
 проверка sbom-файлов
 
@@ -46,6 +46,9 @@ options:
                         программных компонентов с открытым исходным кодом;
                         --format=container для проверки файла-перечня образов
                         контейнеров; по умолчанию oss
+  --fixed-output FIXED_OUTPUT
+                        при проверке пытаться исправлять ошибки (например дублирования) и
+                        сохранить исправленную версию по указанному пути  
   -v, --verbose         подробный вывод
 ```
 

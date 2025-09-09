@@ -9,8 +9,18 @@ import logging
 from pathlib import Path
 import re
 from referencing import Registry, Resource
+from functools import reduce
+import operator
 
 from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop
+
+def update_value(data, path, new_value):
+    current_dict = data
+    for key in list(path)[:-1]:
+        current_dict = current_dict[key]
+
+    current_dict[list(path)[-1]] = new_value
+    return data
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
@@ -21,6 +31,7 @@ parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то ж�
 parser.add_argument('--check-source-distribution', action='store_true', help='проверка существования URL для типа source-distribution и проверка того, что по указанной URL находится архив')
 parser.add_argument('--format', type=str, default='oss',
                     help='--format=oss для проверки файла-перечня заимствованных программных компонентов с открытым исходным кодом; --format=container для проверки файла-перечня образов контейнеров; по умолчанию oss')
+parser.add_argument('--fixed-output', default=False, help="при проверке пытаться исправлять ошибки (например дублирования) и сохранить исправленную версию по указанному пути")
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
 
 
@@ -60,24 +71,41 @@ try:
     for err in errors:
         count += 1
         if err.message.endswith(' has non-unique elements'):
-            p = re.compile('(?<!\\\\)\'')
-            arr = err.instance
-            dups = []
-            for n, i in enumerate(arr):
-                if i in arr[n+1:] and not i in dups:
-                    dups.append(i)
-            inst = ''
-            for line in str(err).split('\n'):
-                if line.startswith('On instance'):
-                    inst = line[:-1]
-                    break
-            print(f'ERROR: {inst} non-unique elements:\n' + '\n'.join([str(x) for x in dups]))
+            if args.fixed_output:
+                item_with_error = reduce(operator.getitem, err.absolute_path, parsed_file)
+                depends = list(set(item_with_error))
+                parsed_file = update_value(parsed_file, err.absolute_path, depends)
+                print(f'FIXED: исправлены неуникальные элементы {depends}')
+            else:
+                p = re.compile('(?<!\\\\)\'')
+                arr = err.instance
+                dups = []
+                for n, i in enumerate(arr):
+                    if i in arr[n+1:] and not i in dups:
+                        dups.append(i)
+                inst = ''
+                for line in str(err).split('\n'):
+                    if line.startswith('On instance'):
+                        inst = line[:-1]
+                        break
+                print(f'ERROR: {inst} non-unique elements:\n' + '\n'.join([str(x) for x in dups]))
         elif err.message.startswith('Additional properties are not allowed'):
-            print(f'ERROR: {err.message}\n\nOn {jsonschema.exceptions._pretty(err.instance, 16 * " ")}')
+            if args.fixed_output:
+                pattern = r"'(\w+)'"
+                match = re.search(pattern, err.message)
+                element_to_delete = reduce(operator.getitem, err.absolute_path, parsed_file)
+                field_name = match.group(1)
+                del element_to_delete[field_name]
+                print(f'FIXED: удалены неразрешенный элемент {field_name}')
+            else:
+                print(f'ERROR: {err.message}\n\nOn {jsonschema.exceptions._pretty(err.instance, 16 * " ")}')
         else:
-            print("ERROR: " + str(err))
+            if args.fixed_output:
+                print("ERROR: невозможно исправить" + str(err.message))
+            else:
+                print("ERROR: " + str(err))
         print('-'*50)
-        if limit and count == limit:
+        if limit and count == limit and not args.fixed_output:
             break
     if args.format == 'container':
         values = {'yes': 2, 'indirect': 1, 'no': 0}
@@ -189,6 +217,9 @@ try:
             print('файл корректный')
     elif count == 0:
         print('файл корректный')
+    if args.fixed_output:
+        with open(args.fixed_output, "w") as file:
+            json.dump(parsed_file, file, indent=4, ensure_ascii=False)
 except jsonschema.exceptions.SchemaError as se:
     print('ошибка в файле-спецификации:')
     print(se)
