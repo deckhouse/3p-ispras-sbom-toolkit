@@ -158,7 +158,7 @@ def check_repo(url):
         except Exception as e:
             exc_list.append(f'ERROR/FOSSIL: {e}')
             result = False
-    if not result:
+    if not result and url: # если url=False, то bzr info "False" воспринимает не как удаленный репозиторий и exit code 0
         try:
             res4 =  subprocess.run(f'bzr info "{url}"', shell=True, capture_output=True, text=True, timeout=SP_TIMEOUT)
             if res4.returncode != 0:
