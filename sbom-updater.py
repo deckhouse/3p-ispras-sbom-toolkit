@@ -15,11 +15,21 @@ import gostcrypto
 from sbom_utils import opener, check_repo, load_cache, dump_cache, is_archive_url
 
 DEFAULT_VALUE = "TODO"
+DEFAULT_VCS_FILE_NAME = 'purl_to_vcs.json'
+DEFAULT_VCS_FILE_PATH = Path(__file__).parent.resolve() / DEFAULT_VCS_FILE_NAME
+DEFAULT_DELETE_FILE_NAME = 'purl_to_delete.json'
+DEFAULT_DELETE_FILE_PATH = Path(__file__).parent.resolve() / DEFAULT_DELETE_FILE_NAME
+DEFAULT_PROPS_VALUE = 'yes'
+DEFAULT_PROPS_LANGS = 'source_langs'
+PROPS_VALUES = ['yes', "indirect", "no"]
+DEFAULT_PROPS_FILE_NAME = 'purl_to_props.json'
+DEFAULT_PROPS_FILE_PATH = Path(__file__).parent.resolve() /  DEFAULT_PROPS_FILE_NAME
+HASH_ALGS = {'streebog256': 'STREEBOG-256', 'streebog512': 'STREEBOG-512'}
 
-def has_prop(arr, name):
+def has_prop(arr, name, value=False):
     for elem in arr:
         if elem.get('name', '') == name:
-            return True
+            return True if not value else elem.get('value', None)
     return False
 
 def get_website(ref_arr):
@@ -38,7 +48,7 @@ def delete_components(components, delete_list):
                 delete_components(nested_components, delete_list)
 
 class RefFinder(object):
-    def __init__(self, purl_file=None, purl_lang_file=None):
+    def __init__(self, purl_file=None, hash_algorithm=False):
         self._placeholder_url = 'sbom-updater_generated_placeholder:'
         self._nuget_addr = None
         self._session = Session()
@@ -55,18 +65,12 @@ class RefFinder(object):
                 self._purl_to_url = json.load(f)
         except Exception:
             pass
-        self._purl_to_lang = dict()
-        try:
-            with open(purl_lang_file) as f:
-                self._purl_to_lang = json.load(f)
-        except Exception:
-            pass
         self._repo_dict = load_cache('vcs')
         self._archive_dict = load_cache('archives')
         
-        self._language_map = {"ansic": "C", "cs": "#", "cpp": "C++", "objc": "Objective-C"}
+        self._language_map = {"ansic": "C", "cs": "C#", "cpp": "C++", "objc": "Objective-C"}
         self._language_exclude = ["yacc", "makefile", "lex", "asm", "xml", "awk", "tcl", "sed", "asm", "exp", "ada", "csh", "lisp", "f90", "mi"]
-        
+        self._hash_algorithm = hash_algorithm
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
 
     def is_repo(self, url):
@@ -102,8 +106,7 @@ class RefFinder(object):
         
         if component['purl'] in self._purl_to_url:
             url = self._purl_to_url[component['purl']]
-        if component['purl'] in self._purl_to_lang:
-            language = self._purl_to_lang[component['purl']] 
+        language = has_prop(component['properties'], DEFAULT_PROPS_LANGS, value=True) 
         
         if not url or not language:
             if component['purl'].startswith('pkg:deb/'):
@@ -113,7 +116,7 @@ class RefFinder(object):
         else:
             return url, language
         if not url:
-            url = self._analyse_urls(urls, component['purl'], 'ecosyste.ms: ')
+            url = self._analyse_urls(urls, component['purl'], 'debian: ' if component['purl'].startswith('pkg:deb/') else 'ecosyste.ms: ')
         if not url:
             for k, f in self._prefixes.items():
                 if component['purl'].startswith(k):
@@ -144,7 +147,7 @@ class RefFinder(object):
         if file_urls:
             file_links = []
             for file in file_urls:
-                file_links.append({'type': "source-distribution", "url": file, "hashes": [{"alg": "STREEBOG-256", "content": self.download_and_hash(url=file)}]})
+                file_links.append({'type': "source-distribution", "url": file, "hashes": [{"alg": HASH_ALGS.get(self._hash_algorithm, DEFAULT_VALUE) if self._hash_algorithm else DEFAULT_VALUE, "content": self.download_and_hash(url=file, algorithm=self._hash_algorithm)} if self._hash_algorithm else DEFAULT_VALUE]})
             return file_links
         
         logging.info(f'{log_prefix}ни одна из {urls} не является git-репозиторием или архивом')
@@ -153,22 +156,25 @@ class RefFinder(object):
     def _debian(self, component, use_apt=False):
         source = pkg_name = component['name']
         source_version = pkg_version = component['version']
-        
+
         if 'properties' in component:
-            for property in component['properties']:
-                if property.get('name', False) == 'source':
-                    source = property.get('value', component['name'])
-                    if ' ' in source:
-                        source, source_version = property.get('value', component['name']).split(' ')
-                        source_version = source_version.strip('()')
-                    break
+            if has_prop(component['properties'], 'source'):
+                source = has_prop(component['properties'], 'source', value=True)
+                if ' ' in source:
+                    source, source_version = source.split(' ')
+                    source_version = source_version.strip('()')
         try: 
             res = self._session.get(f"https://sources.debian.org/api/src/{source}/{source_version}/")
-            debian_data = res.json()
+            if res.status_code == 200 and not res.json().get('pkg_infos', {}).get('vcs_browser' , False):
+                res = self._session.get(f"https://sources.debian.org/api/src/{source}/latest/")
+            if res.status_code != 200:
+                debian_data={}
+            else:
+                debian_data = res.json()
         except Exception as ex:
             debian_data={}
-            print(f"Получение данных от sources.debian.org для {component['purl'].lower()} завершилось с ошибкой {ex}")
-            
+            logging.info(f"Получение данных от sources.debian.org для {component['purl'].lower()} завершилось с ошибкой {ex}")
+
         lang_list=[]
         for lang in debian_data.get('pkg_infos', {}).get('sloc', []):
             if lang[0].lower() in self._language_exclude:
@@ -176,9 +182,9 @@ class RefFinder(object):
             lang_list.append(self._language_map.get(lang[0].lower(), lang[0]).capitalize())
         language = ", ".join(lang_list)
         
-        url = [debian_data.get('pkg_infos', {}).get('vcs_browser', self._placeholder_url)]
+        url = [debian_data.get('pkg_infos', {}).get('vcs_browser', False)]
         
-        if use_apt:
+        if use_apt and not self.is_repo(url[0]):
             deban_source_urls = []
             try:
                 res = subprocess.run(f"apt source -qqq --print-uris '{pkg_name}={pkg_version}' | awk '{{print $1}}'", shell=True, capture_output=True, text=True, timeout=60)
@@ -189,16 +195,19 @@ class RefFinder(object):
                 if deban_source_urls:
                     url = deban_source_urls
             except Exception as ex:
-                print(f"Получение данных с помощью apt source для {component['purl'].lower()} завершилось с ошибкой {ex}")
-        return url, language
+                logging.info(f"Получение данных с помощью apt source для {component['purl'].lower()} завершилось с ошибкой {ex}")   
+        return url if url else self._placeholder_url , language
             
     def _ecosystems(self, purl):
         ecosystems_data = None
-        with self._session.get(f"https://packages.ecosyste.ms/api/v1/packages/lookup?purl={purl.lower()}") as res:
-            ecosystems_data = res.json()
-        if ecosystems_data:
-            ecosystems_data = ecosystems_data[0]
-            return [ecosystems_data.get("repository_url", ''), ecosystems_data.get("registry_url", ''), ecosystems_data.get("homepage", '')], ecosystems_data.get('repo_metadata', {}).get('language', '')
+        try:
+            with self._session.get(f"https://packages.ecosyste.ms/api/v1/packages/lookup?purl={purl.lower()}") as res:
+                ecosystems_data = res.json()
+            if ecosystems_data:
+                ecosystems_data = ecosystems_data[0]
+                return [ecosystems_data.get("repository_url", ''), ecosystems_data.get("registry_url", ''), ecosystems_data.get("homepage", '')], ecosystems_data.get('repo_metadata', {}).get('language', '')
+        except Exception as ex:
+            logging.info(f"Получение данных с помощью ecosystems для {component['purl'].lower()} завершилось с ошибкой {ex}")
         return [] , ''
 
     def _nuget_purl(self, purl):
@@ -248,24 +257,27 @@ class RefFinder(object):
 parser = argparse.ArgumentParser(description='изменение sbom-файлов')
 parser.add_argument('input', help='входной файл в формате CycloneDX JSON, содержащий актуальную информацию о составе заимствованных компонентов')
 parser.add_argument('output', help='выходной файл с дооформленным переченем заимствованных компонентов')
-parser.add_argument('--props', action='store_true',
-                    help='добавить {"name": "GOST:attack_surface", "value": "yes"} и {"name": "GOST:security_function", "value": "yes"}, атакже из файда purl_to_props.json, в поле "properties" для каждого компонента входного файла, при их отсутствии')
-parser.add_argument('--props-no', action='store_true',
-                    help='добавить {"name": "GOST:attack_surface", "value": "no"} и {"name": "GOST:security_function", "value": "no"}, атакже из файда purl_to_props.json, в поле "properties" для каждого компонента входного файла, при их отсутствии')
+parser.add_argument('--props', default=False, nargs='?', const=PROPS_VALUES[0], choices=PROPS_VALUES,
+                    help=f'установить значения для {{"name": "GOST:attack_surface", "value": "{"/".join(PROPS_VALUES)}"}} и {{"name": "GOST:security_function", "value": "yes/indirect/no"}}, в поле "properties" для каждого компонента входного файла, при отсутствии у компонента; По умолчанию "{PROPS_VALUES[0]}"')
+parser.add_argument('--props-file', default=DEFAULT_PROPS_FILE_PATH, nargs='?', const=DEFAULT_PROPS_FILE_PATH, type=str, help=f'добавить в поле "properties" компонента, основываясь на поле "purl" компонента из указанного файла; По умолчанию ./{DEFAULT_PROPS_FILE_NAME}')
 parser.add_argument('--app-name', help='установить название продукта')
 parser.add_argument('--app-version', help='установить версию продукта')
 parser.add_argument('--manufacturer', help='установить название организации — изготовителя продукта')
 parser.add_argument('--type', help='установить тип продукта')
 parser.add_argument('--ref', action='store_true', help='установить поле "externalReferences", основываясь на поле "purl" компонента; если ссылки на репозиторий не было найдено, используется "sbom-updater_generated_placeholder:"')
-parser.add_argument('--use-apt', action='store_true', help='использовать apt source для получения ссылок на архивы с исходными кодами для компонентов pkg:deb')
-parser.add_argument('--delete', action='store_true', help='удалить объекты, указанные в purl_to_delete.json')
+parser.add_argument('--ref-file', default=DEFAULT_VCS_FILE_PATH, type=str, help=f'путь до файла используемого для заполнения поля "externalReferences"; По умолчанию ./{DEFAULT_VCS_FILE_NAME}')
+parser.add_argument('--use-apt', action='store_true', help='использовать apt source для получения ссылок на архивы с исходными кодами для компонентов pkg:deb при невозможности получить ссылку на vcs')
+parser.add_argument('--hasher', default=False, nargs='?', const=list(HASH_ALGS.keys())[0], choices=list(HASH_ALGS.keys()), help=f'указать алгоритм для получения хеш-суммы, если "externalReferences" является ссылкой на архив; по умолчанию {list(HASH_ALGS.keys())[0]}')
+parser.add_argument('--delete', default=False, nargs='?', const=DEFAULT_DELETE_FILE_PATH, type=str, help=f'Удалить компоненты на основе "purl" указанные в файле; По умолчанию ./{DEFAULT_DELETE_FILE_NAME}')
 parser.add_argument('--fix-all', action='store_true', help=f'применить все вышеописанные опции; если необходимое поле остутствует и его значение не указано, используется "{DEFAULT_VALUE}"')
 parser.add_argument('--update', metavar='OLD_SBOM', help='предыдущая версия перечня заимствованных компонентов, состав и версии которых могли устареть, но метаинформацию о приложении и компонентах требуется по возможности перенести в новый перечень')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
 
 args = parser.parse_args()
+
 if args.verbose:
     logging.basicConfig(format='%(message)s', level="INFO")
+
 input_data, encoding = opener(args.input)
 
 if args.fix_all:
@@ -275,18 +287,22 @@ if args.fix_all:
         input_data['specVersion'] = '1.6'
 
 if args.delete or args.fix_all:
+    if not args.delete:
+        args.delete=DEFAULT_DELETE_FILE_PATH
     purl_to_delete = list()
     try:
-        with open(Path(__file__).parent.resolve() / 'purl_to_delete.json') as f:
+        with open(args.delete) as f:
             purl_to_delete = json.load(f)
     except Exception:
         pass
     delete_components(input_data.get('components', []), purl_to_delete)
 
-if args.props or args.fix_all or args.props_no:
+if args.props or args.fix_all:
+    if not args.props:
+        args.props = DEFAULT_PROPS_VALUE
     purl_to_props = dict()
     try:
-        with open(Path(__file__).parent.resolve() /  'purl_to_props.json') as f:
+        with open(args.props_file) as f:
             purl_to_props = json.load(f)
     except Exception:
         pass
@@ -300,9 +316,9 @@ if args.props or args.fix_all or args.props_no:
             if not has_prop(component['properties'], name):
                 component['properties'].append({'name': name, 'value': value})
         if not has_prop(component['properties'], 'GOST:attack_surface'):
-            component['properties'].append({'name': 'GOST:attack_surface', 'value': 'no' if args.props_no else 'yes'})
+            component['properties'].append({'name': 'GOST:attack_surface', 'value': args.props if args.props else DEFAULT_PROPS_VALUE})
         if not has_prop(component['properties'], 'GOST:security_function'):
-            component['properties'].append({'name': 'GOST:security_function', 'value': 'no' if args.props_no else 'yes'})
+            component['properties'].append({'name': 'GOST:security_function', 'value': args.props if args.props else DEFAULT_PROPS_VALUE})
         if 'components' in component:
             stack += component['components']
 
@@ -363,20 +379,20 @@ if not args.type is None or args.fix_all:
         input_data['metadata']['component']['type'] = DEFAULT_VALUE
 
 if args.ref or args.fix_all:
-    ref_finder = RefFinder(purl_file=Path(__file__).parent.resolve() / 'purl_to_vcs.json', purl_lang_file= Path(__file__).parent.resolve() / 'purl_to_lang.json')
+    ref_finder = RefFinder(args.ref_file, hash_algorithm=args.hasher if args.hasher else list(HASH_ALGS.keys())[0] if args.fix_all else False)
     stack = input_data.get('components', []).copy()
     while stack:
         component = stack.pop(0)
         if 'components' in component:
             stack += component['components']
         if 'purl' in component and not 'externalReferences' in component:
-            url, language = ref_finder.process_purl(component, args.use_apt)
+            url, language = ref_finder.process_purl(component, args.fix_all if args.fix_all else args.use_apt)
             if isinstance(url, list):
                 component['externalReferences'] = url
             elif url:
                 component['externalReferences'] = [{'type':'vcs', 'url': url}]
             if language:
-                component['properties'].append({"name": "source_langs", "value": language})
+                component['properties'].append({"name": DEFAULT_PROPS_LANGS, "value": language})
         website_ref = get_website(component.get('externalReferences', []))
         if website_ref and ref_finder.is_repo(website_ref['url']):
             website_ref['type'] = 'vcs'

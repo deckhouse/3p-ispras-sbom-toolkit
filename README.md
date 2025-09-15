@@ -57,10 +57,12 @@ options:
 ```
 prompt> python sbom-updater.py --help
 
-usage: sbom-updater.py [-h] [--props] [--app-name APP_NAME]
-                       [--app-version APP_VERSION]
-                       [--manufacturer MANUFACTURER] [--ref] [--fix-all]
-                       [--update OLD_SBOM] [-v]
+usage: sbom-updater.py [-h] [--props [{yes,indirect,no}]]
+                       [--props-file [PROPS_FILE]] [--app-name APP_NAME]
+                       [--app-version APP_VERSION] [--manufacturer MANUFACTURER]
+                       [--type TYPE] [--ref] [--ref-file REF_FILE] [--use-apt]
+                       [--hasher [{streebog256,streebog512}]] [--delete [DELETE]]
+                       [--fix-all] [--update OLD_SBOM] [-v]
                        input output
 
 изменение sbom-файлов
@@ -70,28 +72,34 @@ positional arguments:
                         актуальную информацию о составе заимствованных
                         компонентов
   output                выходной файл с дооформленным переченем заимствованных
-                        компонентов
+  компонентов
 
 options:
   -h, --help            show this help message and exit
-  --props               добавить {"name": "GOST:attack_surface", "value":
-                        "yes"} и {"name": "GOST:security_function", "value":
-                        "yes"} в поле "properties" для каждого компонента
-                        входного файла, при их отсутствии
+  --props [{yes,indirect,no}]
+                        установить значения для {"name": "GOST:attack_surface",
+                        "value": "yes/indirect/no"} и {"name": "GOST:security_function",
+                        "value": "yes/indirect/no"}, в поле "properties" для каждого компонента входного файла, при их отсутствии; По умолчанию "yes"
+  --props-file [PROPS_FILE]
+                        добавить в поле "properties" компонента, основываясь на поле "purl" компонента из указанного файла; По умолчанию ./purl_to_props.json
   --app-name APP_NAME   установить название продукта
   --app-version APP_VERSION
                         установить версию продукта
   --manufacturer MANUFACTURER
-                        установить название организации — изготовителя
-                        продукта
-  --type                установить тип продукта
+                        установить название организации — изготовителя продукта
+  --type TYPE           установить тип продукта
   --ref                 установить поле "externalReferences", основываясь на
                         поле "purl" компонента; если ссылки на репозиторий не
                         было найдено, используется "sbom-updater_generated_placeholder:"
+  --ref-file REF_FILE   путь до файла используемого для заполнения поля "externalReferences";
+                        По умолчанию ./purl_to_vcs.json
   --use-apt             использовать apt source для получения ссылок на архивы с
-                        исходными кодами для компонентов pkg:deb (только для запуска в
-                        debian based системах с добавленными deb-src репозиториями)
-  --delete              удалить объекты, указанные в purl_to_delete.json
+                        исходными кодами для компонентов pkg:deb при невозможности
+                        получить ссылку на vcs
+  --hasher [{streebog256,streebog512}]
+                        указать алгоритм для получения хеш-суммы, если "externalReferences" является ссылкой на архив; по умолчанию streebog256
+  --delete [DELETE]     Удалить компоненты на основе "purl" указанные в файле; 
+                        По умолчанию ./purl_to_delete.json
   --fix-all             применить все вышеописанные опции; если необходимое
                         поле остутствует и его значение не указано,
                         используется "TODO"
@@ -114,42 +122,38 @@ options:
 }
 ```
 
-#### purl_to_lang.json
-
-Данный файл используется для заполнения поля `"language"` компонент на основе purl при использовании скрипта с опциями `--ref` или `--fix-all`.
-Содержимое файла должно представлять единственный объект, в котором ключ — purl, а значение строка с перечнем языков, которые использовались при написании компонента.
-
-Пример содержания:
-```
-{
-  "pkg:deb/td-agent@4.2.0-1#/var/lib/dpkg": "Ruby, C",
-  "pkg:npm/@types/moment-timezone@0.5.30": "TypeScript"
-}
-```
-
 #### purl_to_props.json
 
-Данный файл используется для добавление в поле `"properties"` компонента на основе purl при использовании
+Данный файл (путь можно задать с помощью опции `--props-file`) используется для добавление в поле `"properties"` компонента на основе purl при использовании
 скрипта с опциями `--props` или `--fix-all`.
-Содержимое файла должно представлять единственный объект, в котором ключ - purl, а значение это объект, содержащий свойства компонента, где ключ - name свойства, а значение value свойства.
+Содержимое файла должно представлять единственный объект, в котором ключ - purl, а значение это объект, содержащий свойства компонента, где ключ - название свойства, а значение - значение свойства.
 
 Пример содержания:
 ```
 {
     "pkg:npm/spacevm@6.5.6": {
         "GOST:attack_surface": "yes",
-        "GOST:security_function": "no"
+        "GOST:security_function": "no",
+        "source_langs": "Python"
     },
     "pkg:pypi/sqlalchemy@2.0.21": {
-        "GOST:attack_surface": "no",
         "GOST:security_function": "yes"
     }
 }
 ```
 
+Стандартные элементы поля `"properties"`:
+
+|название                 | значение                    | Описание                                                                  |
+|-------------------------|-----------------------------|---------------------------------------------------------------------------|
+|GOST:attack_surface      | "yes", "no" или "indirect"  | принадлежность компонента к поверхности атаки                             |
+|GOST:security_function   | "yes", "no" или "indirect"  | принадлежность компонента к компонентам, реализующих функции безопасности |
+|source_langs             | "C++", "Python, Ruby" и тд. | язык (языки) программирования, на котором написан компонент               |
+
+
 #### purl_to_delete.json
 
-Данный файл используется для удаления компонентов на основе purl.
+Данный файл (путь можно задать с помощью опции `--delete`) используется для удаления компонентов на основе purl.
 Содержимое файла должно представлять единственный массив, элементы которого - purl (или маска) удаляемого компонента.
 
 Пример содержания:
