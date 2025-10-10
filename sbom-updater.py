@@ -97,7 +97,7 @@ class RefFinder(object):
         return []
 
     def _nuget_purl(self, purl):
-        id, version = purl.split("@")
+        id, version = purl.split("@") if '@' in purl else (purl, '')
         id = id[10:]
         if not self._nuget_addr:
             with self._session.get("https://api.nuget.org/v3/index.json") as res:
@@ -122,7 +122,7 @@ class RefFinder(object):
         return list(reversed(urls))
 
     def _gem_purl(self, purl):
-        id, version = purl.split("@")
+        id, version = purl.split("@") if '@' in purl else (purl, '')
         id = id[8:]
         gem_data = dict()
         urls = []
