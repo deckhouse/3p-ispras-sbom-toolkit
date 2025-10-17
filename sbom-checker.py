@@ -10,7 +10,7 @@ from pathlib import Path
 import re
 from referencing import Registry, Resource
 
-from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url
+from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
