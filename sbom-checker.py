@@ -95,7 +95,7 @@ try:
                 component_security_function = get_prop(component.get('properties', []), 'GOST:security_function')
                 if values[component_attack_surface] > values[attack_surface]:
                     count += 1
-                    print(f"ERROR: контейнер \"{container['name']}\" сожержит компонент \"{component['name']}\" с бóльшим значением поверхности атаки ({component_attack_surface} > {attack_surface})")
+                    print(f"ERROR: контейнер \"{container['name']}\" содержит компонент \"{component['name']}\" с бóльшим значением поверхности атаки ({component_attack_surface} > {attack_surface})")
                     print('-'*50)
                 elif not eq_as and values[component_attack_surface] == values[attack_surface]:
                     eq_as = True
@@ -103,7 +103,7 @@ try:
                     break
                 if values[component_security_function] > values[security_function]:
                     count += 1
-                    print(f"ERROR: контейнер \"{container['name']}\" сожержит компонент \"{component['name']}\" с бóльшим значением функции безопасности ({component_security_function} > {security_function})")
+                    print(f"ERROR: контейнер \"{container['name']}\" содержит компонент \"{component['name']}\" с бóльшим значением функции безопасности ({component_security_function} > {security_function})")
                     print('-'*50)
                 elif not eq_sf and values[component_security_function] == values[security_function]:
                     eq_sf = True
@@ -112,13 +112,13 @@ try:
             else:
                 if not eq_as:
                     count += 1
-                    print(f"ERROR: контейнер \"{container['name']}\" не сожержит компонентов со значением его поверхности атаки ({security_function})")
+                    print(f"ERROR: контейнер \"{container['name']}\" не содержит компонентов со значением его поверхности атаки ({attack_surface})")
                     print('-'*50)
                 if limit and count >= limit:
                     break
                 if not eq_sf:
                     count += 1
-                    print(f"ERROR: контейнер \"{container['name']}\" не сожержит компонентов со значением его функции безопасности ({security_function})")
+                    print(f"ERROR: контейнер \"{container['name']}\" не содержит компонентов со значением его функции безопасности ({security_function})")
                     print('-'*50)
                 if limit and count >= limit:
                     break
