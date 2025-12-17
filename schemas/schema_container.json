@@ -922,6 +922,7 @@
                 },
                 "allOf": [
                   {
+                    "maxContains": 1,
                     "contains": {
                       "type": "object",
                       "properties": {
@@ -940,6 +941,29 @@
                     }
                   },
                   {
+                    "minContains": 0,
+                    "maxContains": 0,
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "const": "GOST:attack_surface",
+                          "title": "Name",
+                          "description": "The name of the property. Duplicate names are allowed, each potentially having a different value."
+                        },
+                        "value": {
+                          "not": {
+                            "enum": ["yes", "no", "indirect"]
+                          },
+                          "title": "Value",
+                          "description": "The value of the property."
+                        }
+                      },
+                      "required": ["name", "value"]
+                    }
+                  },
+                  {
+                    "maxContains": 1,
                     "contains": {
                       "type": "object",
                       "properties": {
@@ -950,6 +974,28 @@
                         },
                         "value": {
                           "enum": ["yes", "no", "indirect"],
+                          "title": "Value",
+                          "description": "The value of the property."
+                        }
+                      },
+                      "required": ["name", "value"]
+                    }
+                  },
+                  {
+                    "minContains": 0,
+                    "maxContains": 0,
+                    "contains": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "const": "GOST:security_function",
+                          "title": "Name",
+                          "description": "The name of the property. Duplicate names are allowed, each potentially having a different value."
+                        },
+                        "value": {
+                          "not": {
+                            "enum": ["yes", "no", "indirect"]
+                          },
                           "title": "Value",
                           "description": "The value of the property."
                         }
