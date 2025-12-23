@@ -286,7 +286,7 @@ if args.fix_all:
         logging.info('-'*50)
         input_data['specVersion'] = '1.6'
 
-if args.delete or args.fix_all:
+if args.delete:
     if not args.delete:
         args.delete=DEFAULT_DELETE_FILE_PATH
     purl_to_delete = list()
@@ -386,7 +386,7 @@ if args.ref or args.fix_all:
         if 'components' in component:
             stack += component['components']
         if 'purl' in component and not 'externalReferences' in component:
-            url, language = ref_finder.process_purl(component, args.fix_all if args.fix_all else args.use_apt)
+            url, language = ref_finder.process_purl(component, args.use_apt)
             if isinstance(url, list):
                 component['externalReferences'] = url
             elif url:
