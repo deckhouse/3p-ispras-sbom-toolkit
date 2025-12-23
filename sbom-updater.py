@@ -103,11 +103,18 @@ class RefFinder(object):
     def dump_repos(self):
         dump_cache('vcs', {k:v for k,v in self._repo_dict.items() if v})
 
-    def process_purl(self, component, use_apt=False):
+    def process_purl(self, component, use_apt=False, use_startswith=False):
         url = language = None
         
         if component['purl'] in self._purl_to_url:
             url = self._purl_to_url[component['purl']]
+        elif use_startswith:
+            for key in self._purl_to_url.keys():
+                if component['purl'].startswith(key):
+                    if self._purl_to_url.get(key, False):
+                        url = self._purl_to_url.get(key, False)
+                        break
+        
         language = has_prop(component['properties'], DEFAULT_PROPS_LANGS, value=True) 
         
         if not url or not language:
@@ -271,6 +278,7 @@ parser.add_argument('--ref-file', default=DEFAULT_VCS_FILE_PATH, type=str, help=
 parser.add_argument('--use-apt', action='store_true', help='использовать apt source для получения ссылок на архивы с исходными кодами для компонентов pkg:deb при невозможности получить ссылку на vcs')
 parser.add_argument('--hasher', default=False, nargs='?', const=list(HASH_ALGS.keys())[0], choices=list(HASH_ALGS.keys()), help=f'указать алгоритм для получения хеш-суммы, если "externalReferences" является ссылкой на архив; по умолчанию {list(HASH_ALGS.keys())[0]}')
 parser.add_argument('--delete', default=False, nargs='?', const=DEFAULT_DELETE_FILE_PATH, type=str, help=f'Удалить компоненты на основе "purl" указанные в файле; По умолчанию ./{DEFAULT_DELETE_FILE_NAME}')
+parser.add_argument('--use-startswitch', action='store_true', help='использовать purl из файла как начало строки для заполнения "externalReferences" из файла, например ("pkg:npm/pinkie@")')
 parser.add_argument('--fix-all', action='store_true', help=f'применить все вышеописанные опции; если необходимое поле остутствует и его значение не указано, используется "{DEFAULT_VALUE}"')
 parser.add_argument('--update', metavar='OLD_SBOM', help='предыдущая версия перечня заимствованных компонентов, состав и версии которых могли устареть, но метаинформацию о приложении и компонентах требуется по возможности перенести в новый перечень')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
@@ -314,7 +322,14 @@ if args.props or args.fix_all:
         if not 'properties' in component:
             component['properties'] = []
         
-        for name, value in purl_to_props.get(component['purl'], {}).items():
+        props_list = purl_to_props.get(component['purl'], {}).items()
+        if not props_list and args.use_startswitch:
+            for key in purl_to_props.keys():
+                if component['purl'].startswith(key):
+                    props_list = purl_to_props.get(key, {}).items()
+                    break
+                
+        for name, value in props_list:
             if not has_prop(component['properties'], name):
                 component['properties'].append({'name': name, 'value': value})
         if not has_prop(component['properties'], 'GOST:attack_surface'):
@@ -388,7 +403,7 @@ if args.ref or args.fix_all:
         if 'components' in component:
             stack += component['components']
         if 'purl' in component and not 'externalReferences' in component:
-            url, language = ref_finder.process_purl(component, args.use_apt)
+            url, language = ref_finder.process_purl(component, args.use_apt, args.use_startswitch)
             if isinstance(url, list):
                 component['externalReferences'] = url
             elif url:

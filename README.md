@@ -62,7 +62,7 @@ usage: sbom-updater.py [-h] [--props [{yes,indirect,no}]]
                        [--app-version APP_VERSION] [--manufacturer MANUFACTURER]
                        [--type TYPE] [--ref] [--ref-file REF_FILE] [--use-apt]
                        [--hasher [{streebog256,streebog512}]] [--delete [DELETE]]
-                       [--fix-all] [--update OLD_SBOM] [-v]
+                       [--use-startswitch] [--fix-all] [--update OLD_SBOM] [-v]
                        input output
 
 изменение sbom-файлов
@@ -100,6 +100,7 @@ options:
                         указать алгоритм для получения хеш-суммы, если "externalReferences" является ссылкой на архив; по умолчанию streebog256
   --delete [DELETE]     Удалить компоненты на основе "purl" указанные в файле; 
                         По умолчанию ./purl_to_delete.json
+  --use-startswitch     использовать purl из файла как начало строки для заполнения "externalReferences" из файла, например ("pkg:npm/pinkie@")
   --fix-all             применить все вышеописанные опции; если необходимое
                         поле остутствует и его значение не указано,
                         используется "TODO"
@@ -122,6 +123,15 @@ options:
 }
 ```
 
+Если включен параметр `--use-startswitch`, то можно указывать purl как начало строки, например без указания версии:
+
+```
+{
+  "pkg:gem/aasm@": "https://github.com/aasm/aasm",
+  "pkg:nuget/NLog.Extensions.Logging@": "https://github.com/NLog/NLog.Extensions.Logging"
+}
+```
+
 #### purl_to_props.json
 
 Данный файл (путь можно задать с помощью опции `--props-file`) используется для добавление в поле `"properties"` компонента на основе purl при использовании
@@ -137,6 +147,21 @@ options:
         "source_langs": "Python"
     },
     "pkg:pypi/sqlalchemy@2.0.21": {
+        "GOST:security_function": "yes"
+    }
+}
+```
+
+Если включен параметр `--use-startswitch`, то можно указывать purl как начало строки, например без указания версии:
+
+```
+{
+    "pkg:npm/spacevm@": {
+        "GOST:attack_surface": "yes",
+        "GOST:security_function": "no",
+        "source_langs": "Python"
+    },
+    "pkg:pypi/sqlalchemy@": {
         "GOST:security_function": "yes"
     }
 }
