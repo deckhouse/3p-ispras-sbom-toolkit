@@ -260,3 +260,44 @@ options:
                      контейнеров; по умолчанию oss
 
 ```
+
+### Docker image
+
+Имейдж подготовлен для запуска приложения со всеми необходимыми зависимостями.
+Пример использования в Jenkins при интеграции получения SBOM в CI/CD:
+
+```
+stage ('Update sbom file and create odt') {
+    agent {
+        docker {
+            alwaysPull true
+            image "some-registry/sbom-updater"
+            reuseNode true
+        }
+    }
+
+    steps {
+        script {
+            sh script: '''
+                # Директория в проекте с json файлами (purl_to_vcs.json, purl_to_props.json, purl_to_delete.json)
+                # и сгенерированным sbom файлом ${PATH_NAME}-full.json
+                cd ${CDXGENTPATH}
+
+                # Добавление src-deb репозиториев нужной версии
+                cp debian-source.list  /etc/apt/sources.list.d/ && apt update
+
+                # sbom-updater.py
+                sbom-updater --app-name "${APP_NAME}" --app-version "${VERSION}" --manufacturer "${MANUFACTURER}" \
+                --fix-all --props no --use-apt --type application --props-file purl_to_props.json --ref-file purl_to_vcs.json \
+                --delete purl_to_delete.json ${PATH_NAME}-full.json  ${PATH_NAME}-updated.json
+
+                # sbom-checker.py
+                sbom-checker ${PATH_NAME}-${VERSION}-${REPO}.json
+
+                # sbom-to-odt.py
+                sbom-to-odt -t ${PATH_NAME}-${VERSION}-${REPO}.json ${PATH_NAME}-${VERSION}-${REPO}.doc
+            '''
+        }
+    }
+}
+```
