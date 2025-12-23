@@ -217,9 +217,13 @@ try:
             print('файл корректный')
     elif count == 0:
         print('файл корректный')
-    if args.fixed_output:
+    elif args.fixed_output:
         with open(args.fixed_output, "w") as file:
             json.dump(parsed_file, file, indent=4, ensure_ascii=False)
+    elif count != 0:
+        exit(1)
+    
 except jsonschema.exceptions.SchemaError as se:
     print('ошибка в файле-спецификации:')
     print(se)
+    exit(1)
