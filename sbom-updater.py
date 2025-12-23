@@ -25,6 +25,8 @@ PROPS_VALUES = ['yes', "indirect", "no"]
 DEFAULT_PROPS_FILE_NAME = 'purl_to_props.json'
 DEFAULT_PROPS_FILE_PATH = Path(__file__).parent.resolve() /  DEFAULT_PROPS_FILE_NAME
 HASH_ALGS = {'streebog256': 'STREEBOG-256', 'streebog512': 'STREEBOG-512'}
+DEFAULT_CONNECT_TIMEOUT = 10
+DEFAULT_READ_TIMEOUT = 30
 
 def has_prop(arr, name, value=False):
     for elem in arr:
@@ -164,9 +166,9 @@ class RefFinder(object):
                     source, source_version = source.split(' ')
                     source_version = source_version.strip('()')
         try: 
-            res = self._session.get(f"https://sources.debian.org/api/src/{source}/{source_version}/")
+            res = self._session.get(f"https://sources.debian.org/api/src/{source}/{source_version}/", timeout=(DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT))
             if res.status_code == 200 and not res.json().get('pkg_infos', {}).get('vcs_browser' , False):
-                res = self._session.get(f"https://sources.debian.org/api/src/{source}/latest/")
+                res = self._session.get(f"https://sources.debian.org/api/src/{source}/latest/", timeout=(DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT))
             if res.status_code != 200:
                 debian_data={}
             else:
@@ -201,7 +203,7 @@ class RefFinder(object):
     def _ecosystems(self, purl):
         ecosystems_data = None
         try:
-            with self._session.get(f"https://packages.ecosyste.ms/api/v1/packages/lookup?purl={purl.lower()}") as res:
+            with self._session.get(f"https://packages.ecosyste.ms/api/v1/packages/lookup?purl={purl.lower()}", timeout=(DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT)) as res:
                 ecosystems_data = res.json()
             if ecosystems_data:
                 ecosystems_data = ecosystems_data[0]
@@ -214,13 +216,13 @@ class RefFinder(object):
         id, version = purl.split("@") if '@' in purl else (purl, '')
         id = id[10:]
         if not self._nuget_addr:
-            with self._session.get("https://api.nuget.org/v3/index.json") as res:
+            with self._session.get("https://api.nuget.org/v3/index.json", timeout=(DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT)) as res:
                 for resource in res.json().get("resources", []):
                     if resource["@type"].startswith("PackageBaseAddress"):
                         self._nuget_addr = resource["@id"]
         package_address = f"{self._nuget_addr}{id.lower()}/{version.lower()}/{id.lower()}.nuspec"
         root = []
-        with self._session.get(package_address) as res:
+        with self._session.get(package_address, timeout=(DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT)) as res:
             root = ET.fromstring(res.text)
         urls = []
         for child in root:
@@ -241,7 +243,7 @@ class RefFinder(object):
         gem_data = dict()
         urls = []
         kws = ['source_code_uri', 'project_uri', 'homepage_uri']
-        with self._session.get(f'https://rubygems.org/api/v2/rubygems/{id.lower()}/versions/{version.lower()}.json') as res:
+        with self._session.get(f'https://rubygems.org/api/v2/rubygems/{id.lower()}/versions/{version.lower()}.json', timeout=(DEFAULT_CONNECT_TIMEOUT, DEFAULT_READ_TIMEOUT)) as res:
             gem_data = res.json()
         md = gem_data.get('metadata', dict())
         for kw in kws:
