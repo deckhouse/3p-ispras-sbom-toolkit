@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 import subprocess
 import gostcrypto
 
-from sbom_utils import opener, check_repo, load_cache, dump_cache, is_archive_url
+from sbom_utils import opener, check_repo, load_cache, dump_cache, is_archive_url, fix_purl
 
 DEFAULT_VALUE = "TODO"
 DEFAULT_VCS_FILE_NAME = 'purl_to_vcs.json'
@@ -162,6 +162,21 @@ class RefFinder(object):
         logging.info(f'{log_prefix}ни одна из {urls} не является git-репозиторием или архивом')
         return None
 
+    def _apt_source(self, name, version=False):
+        deban_source_urls = []
+        try:
+            if version:
+                res = subprocess.run(f"apt source -qqq --print-uris '{name}={version}' | awk '{{print $1}}'", shell=True, capture_output=True, text=True, timeout=60)
+            else:
+                res = subprocess.run(f"apt source -qqq --print-uris '{name}' | awk '{{print $1}}'", shell=True, capture_output=True, text=True, timeout=60)
+            if res.returncode == 0:
+                    for line in [line for line in res.stdout.split("\n") if line]:
+                        file = line.replace("'", '')
+                        deban_source_urls.append(file)
+        except Exception as ex:
+            logging.info(f"Получение данных с помощью apt source для {component['purl'].lower()} завершилось с ошибкой {ex}")
+        return deban_source_urls
+
     def _debian(self, component, use_apt=False):
         source = pkg_name = component['name']
         source_version = pkg_version = component['version']
@@ -196,11 +211,13 @@ class RefFinder(object):
         if use_apt and not self.is_repo(url[0]):
             deban_source_urls = []
             try:
-                res = subprocess.run(f"apt source -qqq --print-uris '{pkg_name}={pkg_version}' | awk '{{print $1}}'", shell=True, capture_output=True, text=True, timeout=60)
-                if res.returncode == 0:
-                    for line in [line for line in res.stdout.split("\n") if line]:
-                        file = line.replace("'", '')
-                        deban_source_urls.append(file)
+                deban_source_urls = self._apt_source(source, source_version)
+                if not deban_source_urls and source != pkg_name:
+                    deban_source_urls = self._apt_source(pkg_name, pkg_version)
+                if not deban_source_urls:
+                    deban_source_urls = self._apt_source(source)
+                if not deban_source_urls and source != pkg_name:
+                    deban_source_urls = self._apt_source(pkg_name)
                 if deban_source_urls:
                     url = deban_source_urls
             except Exception as ex:
@@ -279,6 +296,7 @@ parser.add_argument('--use-apt', action='store_true', help='использова
 parser.add_argument('--hasher', default=False, nargs='?', const=list(HASH_ALGS.keys())[0], choices=list(HASH_ALGS.keys()), help=f'указать алгоритм для получения хеш-суммы, если "externalReferences" является ссылкой на архив; по умолчанию {list(HASH_ALGS.keys())[0]}')
 parser.add_argument('--delete', default=False, nargs='?', const=DEFAULT_DELETE_FILE_PATH, type=str, help=f'Удалить компоненты на основе "purl" указанные в файле; По умолчанию ./{DEFAULT_DELETE_FILE_NAME}')
 parser.add_argument('--use-startswitch', action='store_true', help='использовать purl из файла как начало строки для заполнения "externalReferences" из файла, например ("pkg:npm/pinkie@")')
+parser.add_argument('--fix-purl', action='store_true', help='Исправить возможные ошибки кодировки в поле purl')
 parser.add_argument('--fix-all', action='store_true', help=f'применить все вышеописанные опции; если необходимое поле остутствует и его значение не указано, используется "{DEFAULT_VALUE}"')
 parser.add_argument('--update', metavar='OLD_SBOM', help='предыдущая версия перечня заимствованных компонентов, состав и версии которых могли устареть, но метаинформацию о приложении и компонентах требуется по возможности перенести в новый перечень')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
@@ -307,6 +325,14 @@ if args.delete:
         pass
     delete_components(input_data.get('components', []), purl_to_delete)
 
+if args.fix_purl:
+    stack = input_data.get('components', []).copy()
+    while stack:
+        component = stack.pop()
+        if component.get("purl", False):
+            component["purl"] = fix_purl( component["purl"])
+
+
 if args.props or args.fix_all:
     if not args.props:
         args.props = DEFAULT_PROPS_VALUE
@@ -328,10 +354,12 @@ if args.props or args.fix_all:
                 if component['purl'].startswith(key):
                     props_list = purl_to_props.get(key, {}).items()
                     break
-                
+        
         for name, value in props_list:
             if not has_prop(component['properties'], name):
                 component['properties'].append({'name': name, 'value': value})
+        if component['purl'].startswith("pkg:deb/nginx@"):
+            print(component['purl'])
         if not has_prop(component['properties'], 'GOST:attack_surface'):
             component['properties'].append({'name': 'GOST:attack_surface', 'value': args.props if args.props else DEFAULT_PROPS_VALUE})
         if not has_prop(component['properties'], 'GOST:security_function'):

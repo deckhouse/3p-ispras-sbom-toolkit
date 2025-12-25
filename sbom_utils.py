@@ -291,3 +291,6 @@ def combine_source_langs(sl1, sl2):
         if not sl in result:
             result.append(sl)
     return ', '.join(result)
+
+def fix_purl(purl):
+    return urllib.parse.unquote(purl)

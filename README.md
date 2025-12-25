@@ -62,8 +62,8 @@ usage: sbom-updater.py [-h] [--props [{yes,indirect,no}]]
                        [--app-version APP_VERSION] [--manufacturer MANUFACTURER]
                        [--type TYPE] [--ref] [--ref-file REF_FILE] [--use-apt]
                        [--hasher [{streebog256,streebog512}]] [--delete [DELETE]]
-                       [--use-startswitch] [--fix-all] [--update OLD_SBOM] [-v]
-                       input output
+                       [--use-startswitch] [--fix-purl] [--fix-all] [--update OLD_SBOM]
+                       [-v] input output
 
 изменение sbom-файлов
 
@@ -104,6 +104,7 @@ options:
   --fix-all             применить все вышеописанные опции; если необходимое
                         поле остутствует и его значение не указано,
                         используется "TODO"
+  --fix-purl            Исправить возможные ошибки кодировки в поле purl
   --update OLD_SBOM     предыдущая версия перечня заимствованных компонентов,
                         состав и версии которых могли устареть, но
                         метаинформацию о приложении и компонентах требуется по
