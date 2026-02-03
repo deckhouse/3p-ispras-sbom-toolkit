@@ -203,13 +203,16 @@ def is_archive_url(url, timeout=10):
         'application/gzip', 'application/x-bzip2', 
         'application/x-xz', 'application/x-zip-compressed',
         'application/octet-stream', 'application/x-msdownload',
-        'application/x-rpm', 'application/java-archive'
+        'application/x-rpm', 'application/java-archive',
+        'application/vnd.rar', 'application/zstd'
     }
     
     archive_extensions = {
         '.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', 
         '.xz', '.tgz', '.tbz2', '.tar.gz', '.tar.bz2', 
-        '.tar.xz', '.zipx', '.iso', '.cab', '.arj', '.src.rpm', '.jar'
+        '.tar.xz', '.zipx', '.iso', '.cab', '.arj', '.src.rpm', '.jar',
+        '.tar.lz', '.tlz', '.tar.Z', '.Z', '.tar.lzma', '.whl', '.rpm',
+        '.src.rock', '.cpio', '.tzr.zst', '.zst'
     }
     exc_list = []
     result = False
