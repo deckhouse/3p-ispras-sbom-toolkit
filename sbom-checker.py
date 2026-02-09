@@ -124,6 +124,19 @@ try:
                     break
                 continue
             break
+    multi_vcs = False
+    if args.format == 'oss':
+        stack = parsed_file.get('components', []).copy()
+        while stack:
+            component = stack.pop(0)
+            vcs_count = 0
+            for ref in component.get('externalReferences', []):
+                if ref.get('type', '') == 'vcs':
+                    vcs_count += 1
+            if vcs_count > 1:
+                multi_vcs = True
+                print(f"WARNING: {component} содержит {vcs_count} ссылки типа vcs")
+                print('-'*50)
     if args.check_vcs or args.check_vcs_leaf_only or args.check_source_distribution:
         import os
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
@@ -185,9 +198,9 @@ try:
                         print('-'*50)
         dump_cache('vcs', {k:v for k,v in repo_dict.items() if v})
         dump_cache('source-distribution', {k:v for k,v in src_results.items() if v})
-        if not_repos == 0 and count == 0 and not_arch_url == 0:
+        if not_repos == 0 and count == 0 and not_arch_url == 0 and not multi_vcs:
             print('файл корректный')
-    elif count == 0:
+    elif count == 0 and not multi_vcs:
         print('файл корректный')
 except jsonschema.exceptions.SchemaError as se:
     print('ошибка в файле-спецификации:')
