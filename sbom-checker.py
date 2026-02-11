@@ -9,6 +9,8 @@ import logging
 from pathlib import Path
 import re
 from referencing import Registry, Resource
+import requests
+from requests.adapters import HTTPAdapter
 
 from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop
 
@@ -172,30 +174,33 @@ try:
                             url = ref.get('url', '')
                             if not url in src_results:
                                 src_list.add(url)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            future_to_url = {executor.submit(check_repo, url): ('vcs', url) for url in refs_to_check.keys()}
-            future_to_url.update({executor.submit(is_archive_url, url): ('source-distribution', url) for url in src_list})
-            for future in concurrent.futures.as_completed(future_to_url):
-                type, url = future_to_url[future]
-                try:
-                    if type == 'vcs':
-                        repo_dict[url], ex_str = future.result()
-                    elif type == 'source-distribution':
-                        src_results[url], ex_str = future.result()
-                except Exception as exc:
-                    print('ERROR: %r generated an exception: %s' % (url, exc))
-                else:
-                    if type == 'vcs' and not repo_dict[url]:
-                        not_repos += len(refs_to_check[url])
-                        for u in sorted(list(refs_to_check[url])):
+        with requests.Session() as current_session:
+            current_session.mount('http://', HTTPAdapter(max_retries=3))
+            current_session.mount('https://', HTTPAdapter(max_retries=3))
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future_to_url = {executor.submit(check_repo, url): ('vcs', url) for url in refs_to_check.keys()}
+                future_to_url.update({executor.submit(is_archive_url, current_session, url): ('source-distribution', url) for url in src_list})
+                for future in concurrent.futures.as_completed(future_to_url):
+                    type, url = future_to_url[future]
+                    try:
+                        if type == 'vcs':
+                            repo_dict[url], ex_str = future.result()
+                        elif type == 'source-distribution':
+                            src_results[url], ex_str = future.result()
+                    except Exception as exc:
+                        print('ERROR: %r generated an exception: %s' % (url, exc))
+                    else:
+                        if type == 'vcs' and not repo_dict[url]:
+                            not_repos += len(refs_to_check[url])
+                            for u in sorted(list(refs_to_check[url])):
+                                logging.info(ex_str)
+                                print(f"WARNING: {u} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
+                                print('-'*50)
+                        if type == 'source-distribution' and not src_results[url]:
+                            not_arch_url += 1
                             logging.info(ex_str)
-                            print(f"WARNING: {u} не подходит под шаблон и не является git/svn/hg/fossil-репозиторием")
+                            print(f"WARNING: {url} не указывает на архив или не существует")
                             print('-'*50)
-                    if type == 'source-distribution' and not src_results[url]:
-                        not_arch_url += 1
-                        logging.info(ex_str)
-                        print(f"WARNING: {url} не указывает на архив или не существует")
-                        print('-'*50)
         dump_cache('vcs', {k:v for k,v in repo_dict.items() if v})
         dump_cache('source-distribution', {k:v for k,v in src_results.items() if v})
         if not_repos == 0 and count == 0 and not_arch_url == 0 and not multi_vcs:

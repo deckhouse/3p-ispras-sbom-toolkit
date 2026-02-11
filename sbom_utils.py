@@ -195,7 +195,7 @@ def dump_cache(type, data):
     with open(cache_file, 'w') as f:
         json.dump(data, f)
 
-def is_archive_url(url, timeout=10):
+def is_archive_url(session, url, timeout=10):
     """Проверяет, является ли URL архивом"""
     archive_mime_types = {
         'application/zip', 'application/x-rar-compressed', 
@@ -218,10 +218,10 @@ def is_archive_url(url, timeout=10):
     result = False
     try:
         # Пробуем HEAD запрос
-        response = requests.head(url, allow_redirects=True, timeout=timeout)
+        response = session.head(url, allow_redirects=True, timeout=timeout)
         # Если HEAD возвращает 405 (Method Not Allowed), пробуем GET
         if response.status_code == 405:
-            response = requests.get(url, stream=True, timeout=timeout, allow_redirects=True, headers={'Range': 'bytes=0-1024'})
+            response = session.get(url, stream=True, timeout=timeout, allow_redirects=True, headers={'Range': 'bytes=0-1024'})
         response.raise_for_status()
 
         # Проверка Content-Type
