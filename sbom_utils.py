@@ -145,7 +145,7 @@ def check_repo(url):
             result = False
     if not result:
         try:
-            res3 = requests.get(url)
+            res3 = requests.get(url, timeout=SP_TIMEOUT)
             if res3.status_code == 200:
                 if re.search(r'footer\"?>\sthis\spage\swas\sgenerated\sin\sabout\s(\d+\.\d+)s\sby\sfossil', res3.text, re.I):
                     result = True
