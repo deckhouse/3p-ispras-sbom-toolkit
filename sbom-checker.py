@@ -11,6 +11,7 @@ import re
 from referencing import Registry, Resource
 import requests
 from requests.adapters import HTTPAdapter
+from urllib.parse import urlsplit
 
 from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop
 
@@ -131,13 +132,22 @@ try:
         stack = parsed_file.get('components', []).copy()
         while stack:
             component = stack.pop(0)
-            vcs_count = 0
+            vcs_set = set()
             for ref in component.get('externalReferences', []):
                 if ref.get('type', '') == 'vcs':
-                    vcs_count += 1
-            if vcs_count > 1:
+                    vcs_url = ref.get('url', '').lower()
+                    if vcs_url.endswith('.git'):
+                        vcs_url = vcs_url[:-4]
+                    if vcs_url.endswith('/'):
+                        vcs_url = vcs_url[:-1]
+                    if vcs_url.startswith('http://'):
+                        vcs_url = vcs_url[7:]
+                    elif vcs_url.startswith('https://'):
+                        vcs_url = vcs_url[8:]
+                    vcs_set.add(vcs_url)
+            if len(vcs_set) > 1:
                 multi_vcs = True
-                print(f"WARNING: {component} содержит {vcs_count} ссылки типа vcs")
+                print(f"WARNING: {component} содержит {len(vcs_set)} ссылки типа vcs")
                 print('-'*50)
     if args.check_vcs or args.check_vcs_leaf_only or args.check_source_distribution:
         import os
