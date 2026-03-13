@@ -11,7 +11,6 @@ import re
 from referencing import Registry, Resource
 import requests
 from requests.adapters import HTTPAdapter
-from urllib.parse import urlsplit
 
 from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop
 
