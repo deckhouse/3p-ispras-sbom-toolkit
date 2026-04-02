@@ -176,3 +176,27 @@ options:
                      контейнеров; по умолчанию oss
 
 ```
+## GitHub CI: сборка и публикация Docker-образа
+
+В репозитории добавлен workflow `Docker Publish`:
+`/.github/workflows/docker-manual-publish.yml`.
+
+Он запускается:
+
+- автоматически при push git-тега, начинающегося с `v`
+- вручную (`workflow_dispatch`) из вкладки **Actions**
+
+Параметры ручного запуска:
+
+- `version` (необязательный; если не задан, используется имя текущей ветки)
+
+В результате публикуются теги:
+
+- `<WERF_REGISTRY>/3p-ispras-sbom-checker:<version-or-branch-or-git-tag>`
+- `<WERF_REGISTRY>/3p-ispras-sbom-checker:sha-<commit_sha>`
+
+Источник основного тега:
+
+- при автозапуске по git-тегу — сам git-тег, например `v1.2.3`
+- при ручном запуске с заданным `version` — значение `version`
+- при ручном запуске без `version` — имя ветки, из которой запущен workflow
