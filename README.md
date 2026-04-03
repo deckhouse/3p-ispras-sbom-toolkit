@@ -195,6 +195,10 @@ options:
 - `<WERF_REGISTRY>/3p-ispras-sbom-checker:<version-or-branch-or-git-tag>`
 - `<WERF_REGISTRY>/3p-ispras-sbom-checker:sha-<commit_sha>`
 
+Образ доступен по адресу:
+
+- `registry.werf.io/sbom-toolkit/3p-ispras-sbom-checker:<tag>`
+
 Источник основного тега:
 
 - при автозапуске по git-тегу — сам git-тег, например `v1.2.3`
