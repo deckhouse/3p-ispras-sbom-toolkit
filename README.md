@@ -30,6 +30,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --old                 использовать старую функциональность
   -e ERRORS, --errors ERRORS
                         максимальное число ошибок для вывода; по умолчанию 10;
                         установите 0 для вывода всех ошибок

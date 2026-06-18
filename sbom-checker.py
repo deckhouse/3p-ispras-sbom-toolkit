@@ -16,6 +16,7 @@ from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cach
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
+parser.add_argument('--old', action='store_true', help='использовать старую функциональность')
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git/svn/hg/fossil-репозиторий (требуется доступ к Интернет и наличие пакетов git, subversion и mercurial)')
@@ -24,19 +25,6 @@ parser.add_argument('--check-source-distribution', action='store_true', help='п
 parser.add_argument('--format', type=str, default='oss',
                     help='--format=oss для проверки файла-перечня заимствованных программных компонентов с открытым исходным кодом; --format=container для проверки файла-перечня образов контейнеров; по умолчанию oss')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
-
-
-registry = None
-with open(Path(__file__).parent.resolve() / 'additional_schemas' / "spdx.schema.json") as f:
-    resource1 = Resource.from_contents(json.load(f))
-with open(Path(__file__).parent.resolve() / 'additional_schemas' / "jsf-0.82.schema.json") as f:
-    resource2 = Resource.from_contents(json.load(f))
-registry = Registry().with_resources(
-    [
-        ("spdx.schema.json", resource1),
-        ("jsf-0.82.schema.json", resource2),
-    ],
-)
 
 args = parser.parse_args()
 if args.verbose:
@@ -47,9 +35,32 @@ data, encoding = opener(args.filename, pairs=True)
 
 with open(args.filename, encoding=encoding) as f:
     parsed_file = json.load(f)
-try:
+if parsed_file['specVersion'] not in ['1.6', '1.7']:
+    print('ERROR: неверная версия спецификации')
+    exit(-1)
+registry = None
+if args.old:
+    with open(Path(__file__).parent.resolve() / 'additional_schemas' / "spdx.schema.json") as f:
+        resource1 = Resource.from_contents(json.load(f))
+    with open(Path(__file__).parent.resolve() / 'additional_schemas' / "jsf-0.82.schema.json") as f:
+        resource2 = Resource.from_contents(json.load(f))
     with open(Path(__file__).parent.resolve() / 'schemas' / ('schema_container.json' if args.format == 'container' else 'schema.json')) as f:
         schema = json.load(f)
+else:
+    with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / 'additional_schemas' / "spdx.schema.json") as f:
+        resource1 = Resource.from_contents(json.load(f))
+    with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / 'additional_schemas' / "jsf-0.82.schema.json") as f:
+        resource2 = Resource.from_contents(json.load(f))
+    with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / ('schema_container.json' if args.format == 'container' else 'schema.json')) as f:
+        schema = json.load(f)
+
+registry = Registry().with_resources(
+    [
+        ("spdx.schema.json", resource1),
+        ("jsf-0.82.schema.json", resource2),
+    ],
+)
+try:
     cls = jsonschema.validators.validator_for(schema)
     cls.check_schema(schema)
     if registry:
