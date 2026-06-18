@@ -34,6 +34,11 @@ options:
   -e ERRORS, --errors ERRORS
                         максимальное число ошибок для вывода; по умолчанию 10;
                         установите 0 для вывода всех ошибок
+  --purl-validation PURL_VALIDATION
+                        --purl-validation=yes для проверки purl на
+                        соответствие спецификации https://github.com/package-
+                        url/purl-spec; иначе --purl-validation=no; по
+                        умолчанию yes
   --check-vcs           проверка url типа vcs на git/svn/hg/fossil-репозиторий
                         (требуется доступ к Интернет и наличие пакетов git,
                         subversion и mercurial)

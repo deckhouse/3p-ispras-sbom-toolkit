@@ -5,6 +5,7 @@ from collections import Counter
 import json
 import os
 import platformdirs
+from packageurl import PackageURL
 import subprocess
 import urllib.parse
 import requests
@@ -107,6 +108,13 @@ def parse_repo_url(url):
     if idx[0] > 0:
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx[0]])), '/'.join(path_split[idx[1]:])
     return None
+
+def check_purl(purl):
+    result = PackageURL.validate_string(purl)
+    if result:
+        return False, "\n".join([m.message for m in result])
+    else:
+        return True, ""
 
 def check_repo(url):
     result = False

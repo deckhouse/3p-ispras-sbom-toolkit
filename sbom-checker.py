@@ -12,13 +12,15 @@ from referencing import Registry, Resource
 import requests
 from requests.adapters import HTTPAdapter
 
-from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop
+from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop, check_purl
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
 parser.add_argument('--old', action='store_true', help='использовать старую функциональность')
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
+parser.add_argument('--purl-validation', type=str, default='yes',
+                    help='--purl-validation=yes для проверки purl на соответствие спецификации https://github.com/package-url/purl-spec; иначе --purl-validation=no; по умолчанию yes')
 parser.add_argument('--check-vcs', action='store_true', help='проверка url типа vcs на git/svn/hg/fossil-репозиторий (требуется доступ к Интернет и наличие пакетов git, subversion и mercurial)')
 parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то же, что и --check-vcs, но проверяются только url в листовых компонентах')
 parser.add_argument('--check-source-distribution', action='store_true', help='проверка существования URL для типа source-distribution и проверка того, что по указанной URL находится архив')
@@ -159,15 +161,15 @@ try:
                 multi_vcs = True
                 print(f"WARNING: {component} содержит {len(vcs_set)} ссылки типа vcs")
                 print('-'*50)
+    not_repos = 0
+    not_arch_url = 0
     if args.check_vcs or args.check_vcs_leaf_only or args.check_source_distribution:
         import os
         os.environ['GIT_TERMINAL_PROMPT'] = '0'
         stack = parsed_file.get('components', []).copy()
-        not_repos = 0
         repo_dict = load_cache('vcs')
         src_list = set()
         src_results = load_cache('source-distribution')
-        not_arch_url = 0
         refs_to_check = dict()
         while stack:
             component = stack.pop(0)
@@ -223,9 +225,38 @@ try:
                             print('-'*50)
         dump_cache('vcs', {k:v for k,v in repo_dict.items() if v})
         dump_cache('source-distribution', {k:v for k,v in src_results.items() if v})
-        if not_repos == 0 and count == 0 and not_arch_url == 0 and not multi_vcs:
+        if args.purl_validation != 'yes' and not_repos == 0 and count == 0 and not_arch_url == 0 and not multi_vcs:
             print('файл корректный')
-    elif count == 0 and not multi_vcs:
+    not_purls = 0
+    if args.purl_validation == 'yes':
+        stack = parsed_file.get('components', []).copy()
+        purl_list = []
+        while stack:
+            component = stack.pop(0)
+            components_value = component.get('components', [])
+            if components_value:
+                stack += components_value
+            purl = component.get('purl', '')
+            if purl and purl not in purl_list:
+                purl_list.append(purl)
+        purl_dict = dict()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_purl = {executor.submit(check_purl, purl): purl for purl in purl_list}
+            for future in concurrent.futures.as_completed(future_to_purl):
+                purl = future_to_purl[future]
+                try:
+                    purl_dict[purl], ex_str = future.result()
+                except Exception as exc:
+                    print('ERROR: %r generated an exception: %s' % (purl, exc))
+                else:
+                    if not purl_dict[purl]:
+                        not_purls += 1
+                        logging.info(ex_str)
+                        print(f"WARNING: {purl} не подходит под спецификацию purl")
+                        print('-'*50)
+        if not_purls == 0 and not_repos == 0 and count == 0 and not_arch_url == 0 and not multi_vcs:
+            print('файл корректный')
+    if not (args.check_vcs or args.check_vcs_leaf_only or args.check_source_distribution) and args.purl_validation != 'yes' and count == 0 and not multi_vcs:
         print('файл корректный')
 except jsonschema.exceptions.SchemaError as se:
     print('ошибка в файле-спецификации:')
