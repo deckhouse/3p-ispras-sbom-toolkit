@@ -21,7 +21,11 @@ pip install -r requirements.txt
 ```
 prompt> python sbom-checker.py --help
 
-usage: sbom-checker.py [-h] [-e ERRORS] [--check-vcs] filename
+usage: sbom-checker.py [-h] [--old] [-e ERRORS]
+                       [--purl-validation PURL_VALIDATION] [--check-vcs]
+                       [--check-vcs-leaf-only] [--check-source-distribution]
+                       [--format FORMAT] [-v]
+                       filename
 
 проверка sbom-файлов
 
