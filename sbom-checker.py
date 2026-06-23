@@ -16,7 +16,6 @@ from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cach
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
-parser.add_argument('--old', action='store_true', help='использовать старую функциональность')
 parser.add_argument('-e', '--errors', type=int, default=10,
                     help='максимальное число ошибок для вывода; по умолчанию 10; установите 0 для вывода всех ошибок')
 parser.add_argument('--purl-validation', type=str, default='yes',
@@ -25,7 +24,7 @@ parser.add_argument('--check-vcs', action='store_true', help='проверка u
 parser.add_argument('--check-vcs-leaf-only', action='store_true', help='то же, что и --check-vcs, но проверяются только url в листовых компонентах')
 parser.add_argument('--check-source-distribution', action='store_true', help='проверка существования URL для типа source-distribution и проверка того, что по указанной URL находится архив')
 parser.add_argument('--format', type=str, default='oss',
-                    help='--format=oss для проверки файла-перечня заимствованных программных компонентов с открытым исходным кодом; --format=container для проверки файла-перечня образов контейнеров; по умолчанию oss')
+                    help='--format=oss для проверки файла-перечня заимствованных программных компонентов с открытым исходным кодом; --format=container для проверки файла-перечня образов контейнер; по умолчанию oss; для старого функционала указать oss2025/container2025')
 parser.add_argument('-v', '--verbose', action='store_true', help='подробный вывод')
 
 args = parser.parse_args()
@@ -41,19 +40,19 @@ if parsed_file['specVersion'] not in ['1.6', '1.7']:
     print('ERROR: неверная версия спецификации')
     exit(-1)
 registry = None
-if args.old:
+if args.format.endswith('2025'):
     with open(Path(__file__).parent.resolve() / 'additional_schemas' / "spdx.schema.json") as f:
         resource1 = Resource.from_contents(json.load(f))
     with open(Path(__file__).parent.resolve() / 'additional_schemas' / "jsf-0.82.schema.json") as f:
         resource2 = Resource.from_contents(json.load(f))
-    with open(Path(__file__).parent.resolve() / 'schemas' / ('schema_container.json' if args.format == 'container' else 'schema.json')) as f:
+    with open(Path(__file__).parent.resolve() / 'schemas' / ('schema_container.json' if args.format == 'container2025' else 'schema.json')) as f:
         schema = json.load(f)
 else:
     with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / 'additional_schemas' / "spdx.schema.json") as f:
         resource1 = Resource.from_contents(json.load(f))
     with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / 'additional_schemas' / "jsf-0.82.schema.json") as f:
         resource2 = Resource.from_contents(json.load(f))
-    with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / ('schema_container.json' if args.format == 'container' else 'schema.json')) as f:
+    with open(Path(__file__).parent.resolve() / 'schemas' / parsed_file['specVersion'] / ('schema_container.json' if args.format.startswith('container') else 'schema.json')) as f:
         schema = json.load(f)
 
 registry = Registry().with_resources(
@@ -94,7 +93,7 @@ try:
         print('-'*50)
         if limit and count == limit:
             break
-    if args.format == 'container':
+    if args.format.startswith('container'):
         values = {'yes': 2, 'indirect': 1, 'no': 0}
         for container in parsed_file.get('components', []):
             attack_surface = get_prop(container.get('properties', []), 'GOST:attack_surface')
@@ -140,7 +139,7 @@ try:
                 continue
             break
     multi_vcs = False
-    if args.format == 'oss':
+    if args.format.startswith('oss'):
         stack = parsed_file.get('components', []).copy()
         while stack:
             component = stack.pop(0)

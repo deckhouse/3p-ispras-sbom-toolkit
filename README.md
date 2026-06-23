@@ -21,10 +21,9 @@ pip install -r requirements.txt
 ```
 prompt> python sbom-checker.py --help
 
-usage: sbom-checker.py [-h] [--old] [-e ERRORS]
-                       [--purl-validation PURL_VALIDATION] [--check-vcs]
-                       [--check-vcs-leaf-only] [--check-source-distribution]
-                       [--format FORMAT] [-v]
+usage: sbom-checker.py [-h] [-e ERRORS] [--purl-validation PURL_VALIDATION]
+                       [--check-vcs] [--check-vcs-leaf-only]
+                       [--check-source-distribution] [--format FORMAT] [-v]
                        filename
 
 проверка sbom-файлов
@@ -34,7 +33,6 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --old                 использовать старую функциональность
   -e ERRORS, --errors ERRORS
                         максимальное число ошибок для вывода; по умолчанию 10;
                         установите 0 для вывода всех ошибок
@@ -56,7 +54,8 @@ options:
   --format FORMAT       --format=oss для проверки файла-перечня заимствованных
                         программных компонентов с открытым исходным кодом;
                         --format=container для проверки файла-перечня образов
-                        контейнеров; по умолчанию oss
+                        контейнер; по умолчанию oss; для старого функционала
+                        указать oss2025/container2025
   -v, --verbose         подробный вывод
 ```
 
