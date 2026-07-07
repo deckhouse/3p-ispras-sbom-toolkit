@@ -250,8 +250,7 @@ try:
                 else:
                     if not purl_dict[purl]:
                         not_purls += 1
-                        logging.info(ex_str)
-                        print(f"WARNING: {purl} не подходит под спецификацию purl")
+                        print(f"WARNING: {purl} не подходит под спецификацию purl: {ex_str}")
                         print('-'*50)
         if not_purls == 0 and not_repos == 0 and count == 0 and not_arch_url == 0 and not multi_vcs:
             print('файл корректный')
