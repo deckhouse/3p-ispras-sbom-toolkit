@@ -5,7 +5,8 @@ from collections import Counter
 import json
 import os
 import platformdirs
-from packageurl import PackageURL
+import packageurl
+import packageurl.validate
 import subprocess
 import urllib.parse
 import requests
@@ -108,13 +109,6 @@ def parse_repo_url(url):
     if idx[0] > 0:
         return (parsed_url.scheme + "://" + parsed_url.netloc + "/" + '/'.join(path_split[:idx[0]])), '/'.join(path_split[idx[1]:])
     return None
-
-def check_purl(purl):
-    result = PackageURL.validate_string(purl)
-    if result:
-        return False, "\n".join([m.message for m in result])
-    else:
-        return True, ""
 
 def check_repo(url):
     result = False
@@ -291,3 +285,174 @@ def combine_source_langs(sl1, sl2):
         if not sl in result:
             result.append(sl)
     return ', '.join(result)
+
+class BazelTypeDefinition(packageurl.validate.BasePurlType):
+    type = "bazel"
+    type_name = "Bazel modules"
+    description = """Bazel modules as specified at https://bazel.build/external/module"""
+    use_repository = True
+    default_repository_url = "https://bcr.bazel.build"
+    namespace_requirement = "prohibited"
+    allowed_qualifiers = {"repository_url"}
+    namespace_case_sensitive = False
+    name_case_sensitive = False
+    version_case_sensitive = True
+    purl_pattern = "pkg:bazel/.*"
+class BrewTypeDefinition(packageurl.validate.BasePurlType):
+    type = "brew"
+    type_name = "Homebrew"
+    description = """Homebrew packages for macOS and Linux"""
+    use_repository = True
+    default_repository_url = "https://formulae.brew.sh/"
+    namespace_requirement = "optional"
+    allowed_qualifiers = {"repository_url"}
+    namespace_case_sensitive = False
+    name_case_sensitive = False
+    version_case_sensitive = True
+    purl_pattern = "pkg:brew/.*"
+class ChromeExtensionTypeDefinition(packageurl.validate.BasePurlType):
+    type = "chrome-extension"
+    type_name = "Chrome Browser Extensions"
+    description = """Chrome Browser Extensions. Note: there are currently no officially documented APIs, further there appears to be no way to query different versions of a package - there only seems to be responses on the latest version. To this end the version component of a chrome purl can be optional. Two known data sources are a sitemap which can be crawled to discover (some) extensions at https://chromewebstore.google.com/sitemap, and an 'updatecheck' API which you can read about here https://github.com/Rob--W/crxviewer , and perhaps here https://github.com/chromium/chromium/blob/main/docs/updater/protocol_3_1.md"""
+    use_repository = True
+    default_repository_url = "https://chromewebstore.google."
+    namespace_requirement = "prohibited"
+    allowed_qualifiers = {"repository_url"}
+    namespace_case_sensitive = False
+    name_case_sensitive = False
+    version_case_sensitive = True
+    purl_pattern = "pkg:chrome-extension/.*"
+    @classmethod
+    def validate_using_type_rules(cls, purl, strict=False):
+        from packageurl import ValidationMessage
+        from packageurl import ValidationSeverity
+        if not re.match(r"^[a-p]{32}$", purl.name):
+            yield ValidationMessage(
+                severity=ValidationSeverity.WARNING,
+                message=f"Name is invalid for purl type: {cls.type!r}. The name is 32 characters in the range a-p (base16-encoded with letters instead of hex digits)",
+            )
+        if purl.version and not re.match(r"^\d+(\.\d+){0,3}$", purl.version):
+            yield ValidationMessage(
+                severity=ValidationSeverity.WARNING,
+                message=f"Version is invalid for purl type: {cls.type!r}. The chrome extension version is semver-like but 1-4 segments",
+            )
+        messages = super().validate_using_type_rules(purl, strict)
+        if messages:
+            yield from messages
+class GitTypeDefinition(packageurl.validate.BasePurlType):
+    type = "git"
+    type_name = "Git"
+    description = """Git-based source packages"""
+    use_repository = True
+    default_repository_url = ""
+    namespace_requirement = "required"
+    allowed_qualifiers = {"repository_url"}
+    namespace_case_sensitive = True
+    name_case_sensitive = True
+    version_case_sensitive = True
+    purl_pattern = "pkg:git/.*"
+class JuliaTypeDefinition(packageurl.validate.BasePurlType):
+    type = "julia"
+    type_name = "Julia Package"
+    description = """Julia Packages"""
+    use_repository = True
+    default_repository_url = "https://github.com/JuliaRegistries/General"
+    namespace_requirement = "prohibited"
+    allowed_qualifiers = {"repository_url", "uuid"}
+    namespace_case_sensitive = False
+    name_case_sensitive = True
+    version_case_sensitive = True
+    purl_pattern = "pkg:julia/.*"
+    @classmethod
+    def validate_using_type_rules(cls, purl, strict=False):
+        from packageurl import ValidationMessage
+        from packageurl import ValidationSeverity
+        if not "uuid" in purl.qualifiers:
+            yield ValidationMessage(
+                severity=ValidationSeverity.WARNING,
+                message=f"\'uuid\' qualifier is required for purl type: {cls.type!r}.",
+            )
+        messages = super().validate_using_type_rules(purl, strict)
+        if messages:
+            yield from messages
+class OpamTypeDefinition(packageurl.validate.BasePurlType):
+    type = "opam"
+    type_name = "Opam package"
+    description = """Opam packages"""
+    use_repository = True
+    default_repository_url = "https://opam.ocaml.org"
+    namespace_requirement = "prohibited"
+    allowed_qualifiers = {"repository_url"}
+    namespace_case_sensitive = False
+    name_case_sensitive = True
+    version_case_sensitive = True
+    purl_pattern = "pkg:opam/.*"
+class OtpTypeDefinition(packageurl.validate.BasePurlType):
+    type = "otp"
+    type_name = "BEAM/OTP Application"
+    description = """BEAM/OTP applications written in Elixir, Erlang, Gleam and other BEAM languages",
+  "note": "- If the component was fetched from a Hex repository, prefer a ``hex`` purl\n  because Hex provides a global, collision-free namespace that uniquely ties\n  the version to the published source.\n- There is no default package repository. When the application can be\n  fetched from a known location, add a general qualifier such as\n  `repository_url`, `download_url` or `vcs_url`."""
+    use_repository = False
+    default_repository_url = ""
+    namespace_requirement = "prohibited"
+    allowed_qualifiers = {"repository_url", "platform", "arch"}
+    namespace_case_sensitive = False
+    name_case_sensitive = False
+    version_case_sensitive = True
+    purl_pattern = "pkg:otp/.*"
+class VcpkgTypeDefinition(packageurl.validate.BasePurlType):
+    type = "vcpkg"
+    type_name = "Vcpkg C/C++ packages"
+    description = """Packages from the vcpkg C/C++ package manager."""
+    use_repository = True
+    default_repository_url = "https://github.com/microsoft/vcpkg/"
+    namespace_requirement = "prohibited"
+    allowed_qualifiers = {"repository_url", "port_version", "repository_revision", "triplet"}
+    namespace_case_sensitive = False
+    name_case_sensitive = False
+    version_case_sensitive = True
+    purl_pattern = "pkg:vcpkg/.*"
+class VscodeExtensionTypeDefinition(packageurl.validate.BasePurlType):
+    type = "vscode-extension"
+    type_name = "VS Code Extension packages"
+    description = """VS Code Extension packages"""
+    use_repository = True
+    default_repository_url = "https://marketplace.visualstudio.com/vscode-extension"
+    namespace_requirement = "required"
+    allowed_qualifiers = {"repository_url", "platform"}
+    namespace_case_sensitive = False
+    name_case_sensitive = False
+    version_case_sensitive = False
+    purl_pattern = "pkg:vscode-extension/.*"
+class YoctoTypeDefinition(packageurl.validate.BasePurlType):
+    type = "yocto"
+    type_name = "Yocto Project"
+    description = """Yocto Project recipies"""
+    use_repository = True
+    default_repository_url = ""
+    namespace_requirement = "optional"
+    allowed_qualifiers = {"repository_url", "layer_version"}
+    namespace_case_sensitive = False
+    name_case_sensitive = True
+    version_case_sensitive = True
+    purl_pattern = "pkg:yocto/.*"
+
+packageurl.validate.DEFINITIONS_BY_TYPE['bazel'] = BazelTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['brew'] = BrewTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['chrome-extension'] = ChromeExtensionTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['git'] = GitTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['julia'] = JuliaTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['opam'] = OpamTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['otp'] = OtpTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['vcpkg'] = VcpkgTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['vscode-extension'] = VscodeExtensionTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['yocto'] = YoctoTypeDefinition
+for k, v in packageurl.validate.DEFINITIONS_BY_TYPE.items():
+    v.allowed_qualifiers |= {"checksum", "download_url", "file_name", "vcs_url", "vers"}
+
+def check_purl(purl):
+    result = packageurl.PackageURL.validate_string(purl, True)
+    if result:
+        return False, "\n".join([m.message for m in result])
+    else:
+        return True, ""
