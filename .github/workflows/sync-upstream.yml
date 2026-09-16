@@ -1,0 +1,160 @@
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: "0 6 1 * *" # monthly, 1st day 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://gitlab.community.ispras.ru/sdl-tools/sbom-checker.git
+  UPSTREAM_BRANCH: master
+  TARGET_BRANCH: master
+  ISSUE_LABEL: upstream-sync
+
+jobs:
+  sync:
+    runs-on: [self-hosted, regular]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Fetch upstream
+        id: fetch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git remote add upstream "$UPSTREAM_URL"
+          # Upstream GitLab is slow; retry a few times before giving up.
+          for i in 1 2 3; do
+            git fetch upstream "$UPSTREAM_BRANCH" && break
+            [[ $i -lt 3 ]] && sleep 30 || exit 1
+          done
+          old_base=$(git merge-base "origin/$TARGET_BRANCH" "upstream/$UPSTREAM_BRANCH")
+          new_base=$(git rev-parse "upstream/$UPSTREAM_BRANCH")
+          echo "old_base=$old_base" >> "$GITHUB_OUTPUT"
+          echo "new_base=$new_base" >> "$GITHUB_OUTPUT"
+          if [[ "$old_base" == "$new_base" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Already in sync with upstream $new_base"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rebase onto upstream
+        if: steps.fetch.outputs.changed == 'true'
+        id: rebase
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git rebase "upstream/$UPSTREAM_BRANCH"; then
+            echo "conflicts<<EOF" >> "$GITHUB_OUTPUT"
+            git diff --name-only --diff-filter=U >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            git rebase --abort
+            echo "status=conflict" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "status=ok" >> "$GITHUB_OUTPUT"
+
+      - name: Push
+        if: steps.rebase.outputs.status == 'ok'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force-with-lease="$TARGET_BRANCH:${{ github.sha }}" origin "HEAD:$TARGET_BRANCH"
+
+      - name: Summarize upstream changes
+        if: steps.fetch.outputs.changed == 'true'
+        id: summary
+        shell: bash
+        env:
+          OLD: ${{ steps.fetch.outputs.old_base }}
+          NEW: ${{ steps.fetch.outputs.new_base }}
+        run: |
+          set -euo pipefail
+          range="$OLD..$NEW"
+          files=$(git diff --name-only "$range")
+          if echo "$files" | grep -Eq '^(.*\.py|schemas/.*|additional_schemas/.*|requirements\.txt|purl_to_vcs\.json)$'; then
+            functional=true
+          else
+            functional=false
+          fi
+          echo "functional=$functional" >> "$GITHUB_OUTPUT"
+          {
+            echo "body<<EOF"
+            echo "Upstream: $UPSTREAM_URL"
+            echo "Range: \`${OLD:0:7}..${NEW:0:7}\`"
+            echo
+            if [[ "${{ steps.rebase.outputs.status }}" == "conflict" ]]; then
+              echo "## Rebase conflict"
+              echo
+              echo "\`$TARGET_BRANCH\` was NOT updated. Conflicting files:"
+              echo
+              echo '```'
+              echo "${{ steps.rebase.outputs.conflicts }}"
+              echo '```'
+              echo
+              echo "Resolve manually: see DOCKER.md, section \"Upstream sync\"."
+            else
+              echo "\`$TARGET_BRANCH\` was rebased onto upstream and force-pushed."
+            fi
+            echo
+            if [[ "$functional" == "true" ]]; then
+              echo "## Functional changes detected"
+              echo
+              echo "Checker code, schemas or dependencies changed. Consider building a new image and tagging a release."
+            else
+              echo "## Non-functional changes only (docs etc.)"
+            fi
+            echo
+            echo "## Upstream commits"
+            echo
+            git log --format='- `%h` %ad %s' --date=short "$range"
+            echo
+            echo "## Changed files"
+            echo
+            echo '```'
+            git diff --stat "$range"
+            echo '```'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open issue
+        if: steps.fetch.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ steps.summary.outputs.body }}
+          STATUS: ${{ steps.rebase.outputs.status }}
+          FUNCTIONAL: ${{ steps.summary.outputs.functional }}
+          NEW: ${{ steps.fetch.outputs.new_base }}
+        run: |
+          set -euo pipefail
+          gh label create "$ISSUE_LABEL" --color 0E8A16 --description "Automated upstream sync" --force
+          if [[ "$STATUS" == "conflict" ]]; then
+            title="Upstream sync: rebase conflict (${NEW:0:7})"
+          elif [[ "$FUNCTIONAL" == "true" ]]; then
+            title="Upstream sync: functional changes (${NEW:0:7})"
+          else
+            title="Upstream sync: docs-only changes (${NEW:0:7})"
+          fi
+          gh issue create --title "$title" --label "$ISSUE_LABEL" --body "$BODY"
+
+      - name: Fail on conflict
+        if: steps.rebase.outputs.status == 'conflict'
+        run: exit 1
