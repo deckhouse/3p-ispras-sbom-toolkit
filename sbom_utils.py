@@ -400,6 +400,30 @@ class OtpTypeDefinition(packageurl.validate.BasePurlType):
     name_case_sensitive = False
     version_case_sensitive = True
     purl_pattern = "pkg:otp/.*"
+class SwidTypeDefinition(packageurl.validate.BasePurlType):
+    type = "swid"
+    type_name = "Software Identification (SWID) Tag"
+    description = """PURL type for ISO-IEC 19770-2 Software Identification (SWID) tags."""
+    use_repository = False
+    default_repository_url = ""
+    namespace_requirement = "optional"
+    allowed_qualifiers = {"tag_creator_name", "tag_creator_regid", "tag_version", "tag_id", "patch"}
+    namespace_case_sensitive = True
+    name_case_sensitive = True
+    version_case_sensitive = True
+    purl_pattern = "pkg:swid/.*"
+    @classmethod
+    def validate_using_type_rules(cls, purl, strict=False):
+        from packageurl import ValidationMessage
+        from packageurl import ValidationSeverity
+        if not "tag_id" in purl.qualifiers:
+            yield ValidationMessage(
+                severity=ValidationSeverity.WARNING,
+                message=f"\'tag_id\' qualifier is required for purl type: {cls.type!r}.",
+            )
+        messages = super().validate_using_type_rules(purl, strict)
+        if messages:
+            yield from messages
 class VcpkgTypeDefinition(packageurl.validate.BasePurlType):
     type = "vcpkg"
     type_name = "Vcpkg C/C++ packages"
@@ -444,6 +468,7 @@ packageurl.validate.DEFINITIONS_BY_TYPE['git'] = GitTypeDefinition
 packageurl.validate.DEFINITIONS_BY_TYPE['julia'] = JuliaTypeDefinition
 packageurl.validate.DEFINITIONS_BY_TYPE['opam'] = OpamTypeDefinition
 packageurl.validate.DEFINITIONS_BY_TYPE['otp'] = OtpTypeDefinition
+packageurl.validate.DEFINITIONS_BY_TYPE['swid'] = SwidTypeDefinition
 packageurl.validate.DEFINITIONS_BY_TYPE['vcpkg'] = VcpkgTypeDefinition
 packageurl.validate.DEFINITIONS_BY_TYPE['vscode-extension'] = VscodeExtensionTypeDefinition
 packageurl.validate.DEFINITIONS_BY_TYPE['yocto'] = YoctoTypeDefinition
@@ -451,8 +476,15 @@ for k, v in packageurl.validate.DEFINITIONS_BY_TYPE.items():
     v.allowed_qualifiers |= {"checksum", "download_url", "file_name", "vcs_url", "vers"}
 
 def check_purl(purl):
-    result = packageurl.PackageURL.validate_string(purl, True)
+    result = packageurl.PackageURL.validate_string(purl)
     if result:
         return False, "\n".join([m.message for m in result])
     else:
         return True, ""
+
+def is_proprietary(component):
+    for license in component.get('licenses', []):
+        l = license.get('license', dict())
+        if isinstance(l, dict) and l.get('name', '').lower() == 'proprietary':
+            return True
+    return False

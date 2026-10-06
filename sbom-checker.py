@@ -12,7 +12,7 @@ from referencing import Registry, Resource
 import requests
 from requests.adapters import HTTPAdapter
 
-from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop, check_purl
+from sbom_utils import check_repo, opener, parse_repo_url, load_cache, dump_cache, is_archive_url, get_prop, check_purl, is_proprietary
 
 parser = argparse.ArgumentParser(description='проверка sbom-файлов')
 parser.add_argument('filename', help='входной файл в формате CycloneDX JSON для проверки')
@@ -236,7 +236,7 @@ try:
             if components_value:
                 stack += components_value
             purl = component.get('purl', '')
-            if purl and purl not in purl_list:
+            if purl and not is_proprietary(component) and purl not in purl_list:
                 purl_list.append(purl)
         purl_dict = dict()
         with concurrent.futures.ThreadPoolExecutor() as executor:
