@@ -727,17 +727,6 @@
             {"$ref": "#/$defs/component"},
             {
               "properties": {
-                "type": {
-                  "type": "string",
-                  "enum": [
-                    "application",
-                    "framework",
-                    "library",
-                    "operating-system",
-                    "device-driver",
-                    "firmware"
-                  ]
-                },
                 "manufacturer": {
                   "type": "object",
                   "title": "Component Manufacturer",
